@@ -7,13 +7,13 @@ Benchmarks were generated to indicate valid forecasting results. As these sets w
 
 A short list of the data-sets:
 
-   Set         | Predictor Variables(num)      | Target 
-   ---| --- |
-1. Load :            w 1-25 (25)                 Price
-2. Price:       Zonal Load, Total Load(2)        Price
-3. Solar:         12 Variables (12)              Power 
-4. Wind*:        weather forecasts 2*u,2*v,      Power
-                 old power ratings (4 or 5)
+ |  Set         | Predictor Variables(num)      | Target |
+ |  ---         | ---                           | ---    |
+|1. Load :  |          w 1-25 (25)              |   Price|
+|2. Price:  |     Zonal Load, Total Load(2)     |   Price|
+|3. Solar:  |       12 Variables (12)           |   Power|
+|4. Wind*:  |      weather forecasts 2*u,2*v, old power ratings (4 or 5)    |   Power|
+                         
 
 * Has seperate files for each of the farms(10). Ratings of u (zonal) and v (meridional) are given in 2 seperate altitudes: 10m, 100m.
 
