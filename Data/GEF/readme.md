@@ -1,3 +1,5 @@
+
+# Overview
 Every folder in GEF contains a separate data set that can be used for online learning.
 Each data set follows the same format: 15 folders names Task 1-15, containing a training and benchmark csv file.
 Training files contain data entries, structured hourly value reports, also marked by month. Year ranges vary according to the dataset.
@@ -5,7 +7,8 @@ Benchmarks were generated to indicate valid forecasting results. As these sets w
 
 A short list of the data-sets:
 
-   Set          Predictor Variables(num)        Target 
+   Set         | Predictor Variables(num)      | Target 
+   ---| --- |
 1. Load :            w 1-25 (25)                 Price
 2. Price:       Zonal Load, Total Load(2)        Price
 3. Solar:         12 Variables (12)              Power 
@@ -17,7 +20,13 @@ A short list of the data-sets:
 
 
 
-Source of dataset:
+## Source of dataset:
 
 Tao Hong, Pierre Pinson, Shu Fan, Hamidreza Zareipour, Alberto Troccoli and Rob J. Hyndman, "Probabilistic energy forecasting: Global Energy Forecasting Competition 2014 and beyond", International Journal of Forecasting, 2016
 [As of Jan, 2016, the paper is in press. Please check ScienceDirect for the most recent status and full citation to the paper.]
+
+Found here:
+[Dr Hong's Blog](http://blog.drhongtao.com/2017/03/gefcom2014-load-forecasting-data.html)
+
+## Licence
+Apache Licence v2.0
