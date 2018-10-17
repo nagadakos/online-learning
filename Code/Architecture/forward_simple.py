@@ -23,34 +23,34 @@ batch   = 64
 epochs  = 100
 gamma   = 0.01
 momnt   = 0.5
-device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-# bundle common args to the Dataloader module as a kewword list.
-# pin_memory reserves memory to act as a buffer for cuda memcopy 
-# operations
-comArgs = {'shuffle': True,'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
+# device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# # bundle common args to the Dataloader module as a kewword list.
+# # pin_memory reserves memory to act as a buffer for cuda memcopy 
+# # operations
+# comArgs = {'shuffle': True,'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
 
-# Data Loading -----------------------
-# ******************
-# At this point the data come in Python tuples, a 28x28 image and a label.
-# while the label is a tensor, the image is not; it needs to be converted.  
-# So we need to transform PIL image to tensor and then normalize it.
-# Normalization is quite a good practise to avoid numerical and convergence
-# problems. For that we need the dataset's mean and std which fortunately
-# can be computed!
-# ******************
-mean = 0.1307
-std  = 0.3081
-# Bundle our transforms sequentially, one after another. This is important.
-# Convert images to tensors + normalize
-transform = tTrans.Compose([tTrans.ToTensor(), tTrans.Normalize( (mean,), (std,) )])
-# Load data set
-mnistTrainset = tdata.MNIST(root='../data', train=True, download=True, transform=transform)
-mnistTestset = tdata.MNIST(root='../data', train=False, download=True, transform=transform)
+# # Data Loading -----------------------
+# # ******************
+# # At this point the data come in Python tuples, a 28x28 image and a label.
+# # while the label is a tensor, the image is not; it needs to be converted.  
+# # So we need to transform PIL image to tensor and then normalize it.
+# # Normalization is quite a good practise to avoid numerical and convergence
+# # problems. For that we need the dataset's mean and std which fortunately
+# # can be computed!
+# # ******************
+# mean = 0.1307
+# std  = 0.3081
+# # Bundle our transforms sequentially, one after another. This is important.
+# # Convert images to tensors + normalize
+# transform = tTrans.Compose([tTrans.ToTensor(), tTrans.Normalize( (mean,), (std,) )])
+# # Load data set
+# mnistTrainset = tdata.MNIST(root='../data', train=True, download=True, transform=transform)
+# mnistTestset = tdata.MNIST(root='../data', train=False, download=True, transform=transform)
 
-# Once we have a dataset, torch.utils has a very nice lirary for iterating on that
-# dataset, wit hshuffle AND batch logic. Very usefull in larger datasets.
-trainLoader = torch.utils.data.DataLoader(mnistTrainset, batch_size = batch, **comArgs )
-testLoader = torch.utils.data.DataLoader(mnistTestset, batch_size = 10*batch, **comArgs)
+# # Once we have a dataset, torch.utils has a very nice lirary for iterating on that
+# # dataset, wit hshuffle AND batch logic. Very usefull in larger datasets.
+# trainLoader = torch.utils.data.DataLoader(mnistTrainset, batch_size = batch, **comArgs )
+# testLoader = torch.utils.data.DataLoader(mnistTestset, batch_size = 10*batch, **comArgs)
 # End of DataLoading -------------------
 
 
@@ -141,7 +141,7 @@ class Net(nn.Module):
             # if idx % 20 == 0: 
                 # print("Epoch: {}->Batch: {} / {}. Loss = {}".format(args, idx, len(indata), loss.item() ))
         # Log the current train loss
-        acc = true/len(trainLoader.dataset)
+        acc = true/len(indata.dataset)
         self.history[trainLoss].append(loss)   
         self.history[trainAcc].append(acc)
     # Testing and error reports are done here
@@ -182,7 +182,7 @@ class Net(nn.Module):
     def report(self):
 
         print("Current stats of MNIST_NET:")
-        print("Accuracy:      {}" .format(self.trainAcc))
+        print("Accuracy:      {}" .format(self.history[trainAcc]))
         print("Training Loss: {}" .format(self.trainLoss))
         print("Test Accuracy: {}" .format(self.testAcc))
         print("Test Loss:     {}" .format(self.testLoss))
@@ -194,7 +194,7 @@ def main():
     print("######### Initiating MNIST N0-DROP Network Training #########\n")
 
     model = Net().to(device)
-    optim = optm.SGD(model.parameters(), lr=gamma, momentum=momnt)
+    # optim = optm.SGD(model.parameters(), lr=gamma, momentum=momnt)
     optim  = optm.Adam(model.parameters())
     tTotal = 0
     testIters = 1000
@@ -204,6 +204,7 @@ def main():
         args = e
         model.train(args, device, trainLoader, optim)
         model.test(device, testLoader)
+
     # Final report
     # model.report()
 
@@ -216,6 +217,7 @@ def main():
     with open('PyTorch_no_drop_eval.txt', 'w') as f:
         for i in range(len(model.history[testAcc])):
             f.write("{:.4f} {:.4f} \n".format(model.history[testAcc][i], model.history[testLoss][i]))
+
 # Define behavior if this module is the main executable.
 if __name__ == '__main__':
     main()
