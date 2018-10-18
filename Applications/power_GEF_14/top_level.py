@@ -17,13 +17,13 @@ print("Hello from power_GEF_14!")
 # Data Loading Specifics --------------------------------------------------------
 
 # Variable Definitions
-batch = 64
+batch = 1000
 
 # ---|
  # path has to be relative from the directory of the file OR terminal
  # that calls this specific top level, not the actual location of
  # this top level itself.
-load1 = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv") 
+load1 = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", transform = "normalize") 
 
 device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -38,7 +38,6 @@ testLoader = torch.utils.data.DataLoader(load1, batch_size = batch, **comArgs)
 # End of data loading -------------------------------------------------------
 #----------------------------------------------------------------------------
 
-print(testLoader)
 print(len(testLoader.dataset))
 print(load1.__getitem__(1))
 
@@ -48,8 +47,7 @@ print(load1.__getitem__(1))
 
 # Model Declaration 
 # model = forward_simple.Net().to(device)
-model = MLR.LinearRegression(25).to(device)
-print(device)
+model = MLR.LinearRegression(load1.get_item_size()).to(device)
 print(model.get_model_descr())
 # ---|
 
@@ -57,9 +55,9 @@ print(model.get_model_descr())
 
 
 # Optimizer Declaration and paramater definitions fo here.
-gamma = 0.01
+gamma = 0.0001
 momnt = 0.5
-optim = sgd.SGD(model.parameters(), lr=gamma, momentum=momnt)
+optim = sgd.SGD(model.parameters(), weight_decay = 100, lr=gamma, momentum=momnt)
 # ---|
 
 
@@ -80,6 +78,7 @@ for e in range(epochs):
     # tester.test(model, device, testLoader)
 
 # Report
+print(model.get_model_descr())
 print(model.history)
 # ---|
 

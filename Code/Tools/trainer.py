@@ -52,17 +52,19 @@ def train(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
 def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
     true = 0
     acc  = 0
-    print(model.parameters())
-    for idx, (img, label) in enumerate(indata):
+    for idx, (img, label, date) in enumerate(indata):
+        # if idx == 1:
         data, label = img.to(device), label.to(device)
         # forward pass calculate output of model
-        output      = model.forward(data)
+        output = model.forward(data).view_as(label)
         pred   = output
-        true  += label.eq(pred[1].view_as(label)).sum().item()
-        # print(data.shape)
-        # print(output.shape)
+
+        # Sanity prints
+        # print("Prediction shape: {} label shape: {}". format(pred.shape, label.shape))
+        # print("Prediction: {}, labels: {}" .format(pred, label))
+
         # compute loss
-        loss        = lossFunction(output, label)
+        loss        = lossFunction(pred, label)
         # Backpropagation part
         # 1. Zero out Grads
         optim.zero_grad()
@@ -70,10 +72,11 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
         loss.backward()            
         # 3. Update weights 
         optim.step()
-
        # Training Progress report for sanity purposes! 
-        # if idx % 20 == 0: 
-            # print("Epoch: {}->Batch: {} / {}. Loss = {}".format(args, idx, len(indata), loss.item() ))
+        if idx % 20 == 0: 
+            print("Epoch: {}->Batch: {} / {}. Loss = {}".format(args, idx, len(indata), loss.item() ))
+            
+
     # Log the current train loss
     acc = true/len(indata.dataset)
     model.history[indexes.trainLoss].append(loss.item())   #get only the loss value
