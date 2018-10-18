@@ -9,7 +9,7 @@ sys.path.insert(0, './Code/')
 
 from  Solvers import sgd
 from Datasets import GEF_Power
-from Architecture import MLR
+from Architecture import MLR, ann_forward
 from Tools import trainer, tester
 print("Hello from power_GEF_14!")
 
@@ -39,7 +39,7 @@ testLoader = torch.utils.data.DataLoader(load1, batch_size = batch, **comArgs)
 #----------------------------------------------------------------------------
 
 print(len(testLoader.dataset))
-print(load1.__getitem__(1))
+print(load1.__getitem__(0))
 
 
 #------------------------------------------------------------------------------
@@ -47,7 +47,8 @@ print(load1.__getitem__(1))
 
 # Model Declaration 
 # model = forward_simple.Net().to(device)
-model = MLR.LinearRegression(load1.get_item_size()).to(device)
+model = MLR.LinearRegression(25).to(device)
+# model = ann_forward.ANNLFS().to(device)
 print(model.get_model_descr())
 # ---|
 
@@ -55,9 +56,9 @@ print(model.get_model_descr())
 
 
 # Optimizer Declaration and paramater definitions fo here.
-gamma = 0.0001
+gamma = 0.001
 momnt = 0.5
-optim = sgd.SGD(model.parameters(), weight_decay = 100, lr=gamma, momentum=momnt)
+optim = sgd.SGD(model.parameters(), weight_decay = 3, lr=gamma, momentum=momnt)
 # ---|
 
 
@@ -69,13 +70,12 @@ optim = sgd.SGD(model.parameters(), weight_decay = 100, lr=gamma, momentum=momnt
 
 
 # Variable Definitions
-epochs = 2
+epochs = 10
 # ---|
+args = []
+args.append(epochs)
+model.train(args,device, testLoader,optim)
 
-for e in range(epochs):
-    args = e
-    trainer.train_regressor(model, args, device, testLoader, optim)
-    # tester.test(model, device, testLoader)
 
 # Report
 print(model.get_model_descr())
