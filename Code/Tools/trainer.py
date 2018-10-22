@@ -10,7 +10,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, dir_path)
 
-import indexes
+import classification_idx as indexes
 import regression_idx as ridx
 
 
@@ -134,9 +134,9 @@ def main():
 
 def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss()):
         print("Commence Testing!")        
-        MAE = 0 
+        MAE  = 0 
         MAPE = 0
-
+        loss = 0
         testSize = len(testLoader.dataset)
         batchSize = args[1]
         # Inform Pytorch that keeping track of gradients is not required in
@@ -147,7 +147,7 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
                 data, label = data.to(device), label.to(device)
                 pred = model.forward(data).view_as(label)
                 # Sum all loss terms and tern then into a numpy number for late use.
-                loss  = lossFunction(pred, label)
+                loss = lossFunction(pred, label).item()
                 MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
                 MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
 
@@ -157,8 +157,8 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
         # Log the current train loss
         MAE  = MAE/ testSize
         MAPE = MAPE/testSize  
-        loss = loss.item() / batchSize
-        model.history[ridx.testLoss].append(loss.item())   #get only the loss value
+        loss = loss 
+        model.history[ridx.testLoss].append(loss)   #get only the loss value
         model.history[ridx.testMAE].append(MAE)
         model.history[ridx.testMAPE].append(MAPE)
 

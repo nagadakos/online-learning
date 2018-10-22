@@ -65,6 +65,7 @@ class LinearRegression(nn.Module):
         
         trainerArgs = args
         testerArgs = args
+        testerArgs[1] *= 4 
         # column_select = torch.tensor([i for i in range(5,30)])
         for e in range(epochs):
            trainerArgs[0] = e 

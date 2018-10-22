@@ -8,7 +8,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, dir_path)
 
-import indexes
+# import classification_idx as indexes
 import regression_idx as ridx
 
 
@@ -88,11 +88,11 @@ def plot_all_in_one(reps, epochs, title):
     print("Hellos")
 
 def main():
-    title = 'MLR Loss vs Epoch plot'
+    title = 'Multi-Linear Regression MSE Loss vs Epoch plot'
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
-    filePath = "./log1.txt"
+    filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
     plot_regressor(filePath, 1, title)
-    plt.savefig("./MLR-epoch.png")
+    plt.savefig("../../Applications/power_GEF_14/Plots/MLR-25-epoch.png")
     plt.close()
 
   

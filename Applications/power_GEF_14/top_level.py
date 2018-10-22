@@ -80,7 +80,7 @@ optim = sgd.SGD(model.parameters(), weight_decay = 3, lr=gamma, momentum=momnt)
 
 
 # Variable Definitions
-epochs = 2
+epochs = 12
 # ---|
 args = []
 args.append(epochs)
