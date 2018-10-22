@@ -12,6 +12,39 @@ sys.path.insert(0, dir_path)
 
 import indexes
 import regression_idx as ridx
+
+
+
+class QuantileLoss(nn.Module):
+    def __init__(self):
+        super(QuantileLoss, self).__init__()
+    def forward(self, x, target, q):
+        x = q* F.relu(x-target) + (1-q) * F.relu(target- x)
+        return x
+
+
+
+def save_log(filePath, history):
+    '''
+        Description: Saves the history log in the target txt file.
+                     If some history elements do not exist, mark them with -1.
+        Arguments:   filePath (string): Target location for log
+                     history (list of lists): History list in the following format:
+                     Each  inner list is one of trainMAE, testLOss etc, as indexed 
+                     in the ridx file. They contain the relevant metric from all epochs
+                     of training / testing, if they exist.
+    '''
+    with open(filePath, 'w') as f:
+        for i in range(len(history[0])): 
+            for j in range(len(history)):
+                if i < len(history[j]):
+                    f.write("{:.4f} ".format(history[j][i]))
+                else:
+                    f.write("-1")
+            f.write("\n")
+     
+
+
 # Call this function to facilitate the traiing process
 # While there are many ways to go on about calling the
 # traing and testing code, define a function within
@@ -52,14 +85,12 @@ def train(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
 # ------------------------------------------------------------------------------------------
 # Training function for MLR Regressors
 
-def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELoss(), column_select =
-                     None):
+def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
     MAE   = 0
     MAPE  = 0
 
     for idx, (data, label) in enumerate(indata):
-        if column_select is not  None:
-            data = torch.index_select(data, 1, column_select)     # select specified columns only.
+        data = model.shape_input(data)     # select specified columns only.
         data, label = data.to(device), label.to(device)
         # forward pass calculate output of model
         output = model.forward(data).view_as(label)
@@ -82,7 +113,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
         # 3. Update weights 
         optim.step()
        # Training Progress report for sanity purposes! 
-        if idx % 20 == 0: 
+        if idx % 20 == 0 or idx % pred.shape[0] == 0 : 
             print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(indata),
                                                                            pred.shape[0], loss.item() ))
             factor = (idx+1)*pred.shape[0]
@@ -95,4 +126,46 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     model.history[ridx.trainLoss].append(loss.item())   #get only the loss value
     model.history[ridx.trainMAE].append(MAE)
     model.history[ridx.trainMAPE].append(MAPE)
+def main():
+    history = [[1, 2],[3,4],[5,6],[7,8],[9,10],[]]
+    print(len(history))
+    filePath = "./log1.txt"
+    save_log(filePath, history)
 
+def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss()):
+        print("Commence Testing!")        
+        MAE = 0 
+        MAPE = 0
+
+        testSize = len(testLoader.dataset)
+        batchSize = args[1]
+        # Inform Pytorch that keeping track of gradients is not required in
+        # testing phase.
+        with torch.no_grad():
+            for data, label in testLoader:
+                data = model.shape_input(data)     # select specified columns only.
+                data, label = data.to(device), label.to(device)
+                pred = model.forward(data).view_as(label)
+                # Sum all loss terms and tern then into a numpy number for late use.
+                loss  = lossFunction(pred, label)
+                MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
+                MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
+
+                
+
+        print("History size {}, idx {}".format(len(model.history), ridx.testLoss))
+        # Log the current train loss
+        MAE  = MAE/ testSize
+        MAPE = MAPE/testSize  
+        loss = loss.item() / batchSize
+        model.history[ridx.testLoss].append(loss.item())   #get only the loss value
+        model.history[ridx.testMAE].append(MAE)
+        model.history[ridx.testMAPE].append(MAPE)
+
+        # Print Regressor's evaluation report!
+        print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
+
+
+
+if __name__ == "__main__":
+    main()

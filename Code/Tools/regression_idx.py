@@ -12,4 +12,4 @@ trainLoss = 2
 # Test phase metrics
 testMAE   = 3
 testMAPE  =	4
-testLoss  = 50
+testLoss  = 5

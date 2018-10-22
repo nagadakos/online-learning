@@ -15,7 +15,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 tools_path = os.path.join(dir_path, "../")
 sys.path.insert(0, tools_path)
 
-from Tools import trainer, tester
+from Tools import trainer
 import regression_idx as ridx
 
 
