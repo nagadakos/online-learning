@@ -3,6 +3,7 @@ import torch
 import torchvision.datasets as tdata
 import torchvision.transforms as tTrans
 import os
+import torch.nn as nn
 
 
 # WARNING:  This is relevant to the directory that CALLS this toplevel
@@ -28,6 +29,11 @@ batch = 1000
  # path has to be relative from the directory of the file OR terminal
  # that calls this specific top level, not the actual location of
  # this top level itself.
+
+# Call this function to reshape raw data to match architecture specific inputs.
+# This function will reshape and save the data as: DataSet_reshaped_as_model.csv
+# delimitered by spaces.
+# GEF_Power.reshape_and_save("./Data/GEF/Load/Task 1/L1-train.csv", as = "ANNGReek") 
 trainSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", transform =
                               "normalize",dataRange= [0,76799]) 
 testSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", transform =
@@ -48,7 +54,7 @@ testLoader = torch.utils.data.DataLoader(testSet, batch_size = batch, **comArgs)
 #----------------------------------------------------------------------------
 
 print(len(testLoader.dataset))
-print()
+# print()
 print(trainSet.__getitem__(0))
 
 
@@ -85,7 +91,9 @@ epochs = 12
 args = []
 args.append(epochs)
 args.append(batch)
-model.train(args,device, trainLoader, testLoader,optim)
+loss = trainer.QuantileLoss(0.9)
+# loss = nn.MSELoss()
+model.train(args,device, trainLoader, testLoader,optim, loss)
 
 
 # Report
