@@ -13,7 +13,8 @@ folder, into PyTorch datasets. Each such class can transform the raw data as inp
 architectures. 
 5. *Tools* :  Here go various utility classes. Main assets: the printing and general training and testing functions, plus anything that is generaly used or not apt for the aove categories.
 
-#### **Applications** : Here are the top level modules that combine an architecture, a solver and other required pre or post processing steps to efficiently tackkle a problem, such as GEF electrical load prediction. Saved models, results, plots are also stored in the appropriate subfolders.
+#### **Applications** 
+Here are the top level modules that combine an architecture, a solver and other required pre or post processing steps to efficiently tackkle a problem, such as GEF electrical load prediction. Saved models, results, plots are also stored in the appropriate subfolders.
 
 
 
