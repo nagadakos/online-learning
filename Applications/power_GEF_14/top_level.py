@@ -15,7 +15,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 from  Solvers import sgd
 from Datasets import GEF_Power
-from Architecture import MLR, ann_forward
+from Architecture import MLR, ann_forward, ann_greek
 from Tools import trainer
 print("Hello from power_GEF_14!")
 
@@ -34,9 +34,9 @@ batch = 1000
 # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
 # delimitered by spaces.
 # GEF_Power.reshape_and_save("./Data/GEF/Load/Task 1/L1-train.csv", as = "ANNGReek") 
-trainSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", transform =
+trainSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
                               "normalize",dataRange= [0,76799]) 
-testSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", transform =
+testSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
                              "normalize",dataRange=[76800,0]) 
 
 device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -63,8 +63,9 @@ print(trainSet.__getitem__(0))
 
 # Model Declaration 
 # model = forward_simple.Net().to(device)
-model = MLR.LinearRegression(25).to(device)
-# model = ann_forward.ANNLFS().to(device)
+#model = MLR.LinearRegression(25).to(device)
+model = ann_forward.ANNLFS().to(device)
+model = ann_greek.ANNGREEK(59).to(device)
 print(model.get_model_descr())
 # ---|
 
@@ -72,7 +73,7 @@ print(model.get_model_descr())
 
 
 # Optimizer Declaration and paramater definitions fo here.
-gamma = 0.001
+gamma = 0.0001
 momnt = 0.5
 optim = sgd.SGD(model.parameters(), weight_decay = 3, lr=gamma, momentum=momnt)
 # ---|

@@ -10,9 +10,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, dir_path)
 
-import classification_idx as indexes
+#import classification_idx as indexes
 import regression_idx as ridx
-
 
 
 class QuantileLoss(nn.Module):
@@ -113,7 +112,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     MAPE  = 0
 
     for idx, (data, label) in enumerate(indata):
-        data = model.shape_input(data)     # select specified columns only.
+        #data = model.shape_input(data)     # select specified columns only.
         data, label = data.to(device), label.to(device)
         # forward pass calculate output of model
         output = model.forward(data).view_as(label)

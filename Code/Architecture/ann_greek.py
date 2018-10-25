@@ -15,7 +15,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 tools_path = os.path.join(dir_path, "../")
 sys.path.insert(0, tools_path)
 
-from Tools import trainer, tester
+from Tools import trainer
 import regression_idx as ridx
 
 
@@ -25,7 +25,7 @@ import regression_idx as ridx
 
 sign = lambda x: ('+', '')[x < 0]
 
-class ANNSTLFGREEK(nn.Module):
+class ANNGREEK(nn.Module):
     '''
         Simple single layer feedforwards network, for load preditction.
         It is found in Hond Tao's PhD dissertation as the entry level
@@ -44,7 +44,7 @@ class ANNSTLFGREEK(nn.Module):
     '''
     history = [[] for i in range(ridx.logSize)]
     def __init__(self, inSize = 2, loss = nn.MSELoss()): 
-        super(ANNLFS, self).__init__() 
+        super(ANNGREEK, self).__init__() 
         self.firstPass = 1
         self.linear = nn.Linear(inSize, 1)  # 10 nodes are specified in the thesis.
         self.loss = loss
