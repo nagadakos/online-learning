@@ -94,6 +94,21 @@ def train(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
 # Training function for MLR Regressors
 
 def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
+    '''
+        Description: This function tests regression models. It computes
+                     the Mean Absolute Error (MAE) and Mean Absolute Relative Error(MAPE).
+                     If other metric are needed fille the logic in the marked place.
+                     Also, one needs to edit the regression_idx file, and update the
+                     indexes of the new metrics. Every architecture's history is indexed by
+                     those indexes.
+
+        Arguments:  model (nn.module):        A specified architecture, to be trained.
+                    args [list]:              List of various arguments. 
+                                              Curently 0: epoch  1: batchsize
+                    Device (device):          Selects CPU or GPU utilization
+                    testloader (dataLoader):  Data loader objest for data... loading
+                    lossFunction (nn.module): Desired loss function. Default is MSE.help
+    '''
     MAE   = 0
     MAPE  = 0
 
@@ -138,21 +153,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
 # Start of Train Regressor.
 
 def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss()):
-    '''
-        Description: This function tests regression models. It computes
-                     the Mean Absolute Error (MAE) and Mean Absolute Relative Error(MAPE).
-                     If other metric are needed fille the logic in the marked place.
-                     Also, one needs to edit the regression_idx file, and update the
-                     indexes of the new metrics. Every architecture's history is indexed by
-                     those indexes.
 
-        Arguments:  model (nn.module):        A specified architecture, to be trained.
-                    args [list]:              List of various arguments. 
-                                              Curently 0: epoch  1: batchsize
-                    Device (device):          Selects CPU or GPU utilization
-                    testloader (dataLoader):  Data loader objest for data... loading
-                    lossFunction (nn.module): Desired loss function. Default is MSE.help
-    '''
     print("Commence Testing!")        
     MAE  = 0 
     MAPE = 0
