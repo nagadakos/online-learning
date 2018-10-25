@@ -69,6 +69,7 @@ class GefPower(Dataset):
                self.data_len = len(self.data.index)
                self.shape_data(toShape, reshapedPath)
            fileToRead = reshapedPath
+           print("Here1"+ fileToRead)
            # New reshaped file does not have the offset unlabeld lines
            # So, we need to account for that.
            dataRange[0] = max(dataRange[0] - offset,0)  
@@ -88,7 +89,7 @@ class GefPower(Dataset):
                temp = dataRange[0]
                dataRange[0] = dataRange[1]
                dataRange[1] = temp
-       print(fileToRead)
+       print("Here " + fileToRead)
        self.data    = pd.read_csv(fileToRead, skiprows = dataRange[0], nrows = abs(dataRange[1]-
                                                                              dataRange[0]))
        print(self.data.shape) 
