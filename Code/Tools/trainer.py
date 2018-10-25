@@ -10,7 +10,6 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, dir_path)
 
-#import classification_idx as indexes
 import regression_idx as ridx
 
 
@@ -60,34 +59,34 @@ def save_log(filePath, history):
 # This function is aimed towards training classifiers. For training regressors
 # see train_regressor instead.
 
-def train(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
-    true = 0
-    acc  = 0
-    for idx, (img, label) in enumerate(indata):
-        data, label = img.to(device), label.to(device)
-        # forward pass calculate output of model
-        output      = model.forward(data)
-        pred   = output.max(dim = 1, keepdim = True)
-        true  += label.eq(pred[1].view_as(label)).sum().item()
-        # print(data.shape)
-        # print(output.shape)
-        # compute loss
-        loss        = lossFunction(output, label)
-        # Backpropagation part
-        # 1. Zero out Grads
-        optim.zero_grad()
-        # 2. Perform the backpropagation based on loss
-        loss.backward()            
-        # 3. Update weights 
-        optim.step()
-
-       # Training Progress report for sanity purposes! 
-        # if idx % 20 == 0: 
-            # print("Epoch: {}->Batch: {} / {}. Loss = {}".format(args, idx, len(indata), loss.item() ))
-    # Log the current train loss
-    acc = true/len(indata.dataset)
-    model.history[indexes.trainLoss].append(loss.item())   #get only the loss value
-    model.history[indexes.trainAcc].append(acc)
+# def train(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
+#     true = 0
+#     acc  = 0
+#     for idx, (img, label) in enumerate(indata):
+#         data, label = img.to(device), label.to(device)
+#         # forward pass calculate output of model
+#         output      = model.forward(data)
+#         pred   = output.max(dim = 1, keepdim = True)
+#         true  += label.eq(pred[1].view_as(label)).sum().item()
+#         # print(data.shape)
+#         # print(output.shape)
+#         # compute loss
+#         loss        = lossFunction(output, label)
+#         # Backpropagation part
+#         # 1. Zero out Grads
+#         optim.zero_grad()
+#         # 2. Perform the backpropagation based on loss
+#         loss.backward()
+#         # 3. Update weights
+#         optim.step()
+#
+#        # Training Progress report for sanity purposes!
+#         # if idx % 20 == 0:
+#             # print("Epoch: {}->Batch: {} / {}. Loss = {}".format(args, idx, len(indata), loss.item() ))
+#     # Log the current train loss
+#     acc = true/len(indata.dataset)
+#     model.history[indexes.trainLoss].append(loss.item())   #get only the loss value
+#     model.history[indexes.trainAcc].append(acc)
 
 # ------------------------------------------------------------------------------------------
 # Training function for MLR Regressors

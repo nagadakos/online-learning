@@ -8,9 +8,9 @@ import torch.nn as nn
 
 # WARNING:  This is relevant to the directory that CALLS this toplevel
 # Module, rather than the position of this module.
-sys.path.insert(0, './Code/')
-dir_path = os.path.dirname(os.path.realpath(__file__))
-
+dir_path   = os.path.dirname(os.path.realpath(__file__))
+tools_path = os.path.join(dir_path, "../../Code/")
+sys.path.insert(0, tools_path)
 
 
 from  Solvers import sgd
@@ -37,7 +37,7 @@ batch = 1000
 trainSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
                               "normalize",dataRange= [0,76799]) 
 testSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
-                             "normalize",dataRange=[76800,0]) 
+                              "normalize",dataRange= [0,76799]) 
 
 device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
