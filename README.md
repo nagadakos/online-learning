@@ -3,7 +3,7 @@ A repository for implementing networks and developing learning algorithms, in th
 
 ## Structure
 
-1. **Code**
+#### **Code**
 
 .1 *Solvers*      : This folder contains custom solvers, to be used for finding e-optimal model parameters. They inherit from the optimizer class and implement, init(), state() and step() methods.
 ..2. *Architectures*: This folder contains network architectures, to be used for forecasting, classification etc; they are organizer in folders specific to a problem/ application.
