@@ -24,8 +24,9 @@ import regression_idx as ridx
 
 
 sign = lambda x: ('+', '')[x < 0]
-
-class ANNGREEK(nn.Module):
+# CapWords naming convention for class names
+# If there is a n acronym such as ANN, it is all uppercase
+class ANNGreek(nn.Module):
     '''
         Simple single layer feedforwards network, for load preditction.
         It is found in Hond Tao's PhD dissertation as the entry level
@@ -42,13 +43,14 @@ class ANNGREEK(nn.Module):
 
         Returns:    A single value prediction of the load.
     '''
+
     history = [[] for i in range(ridx.logSize)]
     def __init__(self, inSize = 2, loss = nn.MSELoss()): 
-        super(ANNGREEK, self).__init__() 
+        super(ANNGreek, self).__init__() 
         self.firstPass = 1
         self.linear = nn.Linear(inSize, 1)  # 10 nodes are specified in the thesis.
         self.loss = loss
-  
+        self.descr = "ANNGreek" 
 
     def forward(self, x): 
         x = F.relu(self.linear(x)) 
@@ -70,33 +72,19 @@ class ANNGREEK(nn.Module):
                 24-27: Max and min temp of 2 weather station
                 30-33: Bit encoding for day
         '''
-
-
-
-        if self.firstPass == 1:
-            self.lastday = x[0:23,:].flatten()
-            self.firstPass = 0
-
-        
-        x = torch.cat((label, x[2:8], x[11:12]), 0)
-        day = x[1]
-
-        label = torch.cat((self.firstDayLabel, llabel[1:] ), 0)
-        # self.firstDayLabel = 
+         
         return x
 
     def save_history(self, filePath):
         trainer.save_log(filePath, self.history)
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction = nn.MSELoss()):
-        true = 0
-        acc  = 0
         epochs = args[0]
         
         trainerArgs = args
         testerArgs = args
         testerArgs[1] *= 4 
-        # column_select = torch.tensor([i for i in range(5,30)])
+
         for e in range(epochs):
            trainerArgs[0] = e 
            testerArgs[0] = e 
@@ -105,7 +93,6 @@ class ANNGREEK(nn.Module):
     
     # Testing and error reports are done here
     def test(self, args, device, testLoader, lossFunction = nn.MSELoss()):
-        print("--Epoch {} Testing ----" . format(args[0]))        
         testArgs = args
         trainer.test_regressor(self, args, device, testLoader, lossFunction) 
 

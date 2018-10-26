@@ -22,12 +22,22 @@ class QuantileLoss(nn.Module):
     '''
     def __init__(self,q):
         super(QuantileLoss, self).__init__()
-        self.q = q
+        if isinstance(q, list):
+            self.q = q
+        else:
+            self.q = [q]
+            self.loss = [] 
+        for i in range(len(self.q)):
+            self.loss.append(0)
+        print(self.loss)
 
     def forward(self, x, target):
-        x = self.q* F.relu(x-target) + (1-self.q) * F.relu(target- x)
-        x = x.mean() # Mean value of all elements, scalar.
-        return x
+        
+        for i,q in enumerate(self.q): 
+            x = q* F.relu(target- x) + (1-q) * F.relu(x - target)
+            # self.loss[i] = a.mean() # Mean value of all elements, scalar.
+        x = x.mean()
+        return x 
 # End of Quantile Loss
 # ---------------------------------------------------------------------------------
 
@@ -111,7 +121,6 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     MAPE  = 0
 
     for idx, (data, label) in enumerate(indata):
-        #data = model.shape_input(data)     # select specified columns only.
         data, label = data.to(device), label.to(device)
         # forward pass calculate output of model
         output = model.forward(data).view_as(label)
@@ -152,7 +161,6 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
 
 def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss()):
 
-    print("Commence Testing!")        
     MAE  = 0 
     MAPE = 0
     loss = 0
@@ -162,7 +170,6 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
     # testing phase.
     with torch.no_grad():
         for data, label in testLoader:
-            data = model.shape_input(data)     # select specified columns only.
             data, label = data.to(device), label.to(device)
             pred = model.forward(data).view_as(label)
             # Sum all loss terms and tern then into a numpy number for late use.
@@ -170,9 +177,6 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
             MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
             MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
 
-            
-
-    print("History size {}, idx {}".format(len(model.history), ridx.testLoss))
     # Log the current train loss
     MAE  = MAE/ testSize
     MAPE = MAPE/testSize  
@@ -182,8 +186,9 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
     model.history[ridx.testMAPE].append(MAPE)
 
     # Print Regressor's evaluation report!
+    print("--Epoch {}  Testing --".format(args[0]))
     print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
-
+    print("-------")
 # End of train Regressor 
 # ---------------------------------------------------------------------------------------_
 

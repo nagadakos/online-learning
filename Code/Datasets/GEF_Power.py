@@ -22,7 +22,10 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class GefPower(Dataset):
     def __init__(self, csvPath, toShape = None, transform = None, dataRange = [0, 0]):
-       """  
+        """ Description: This class defines the tranformation of a raw data csv file
+                         to a PyTorch dataset. If required it should handle the 
+                         complete reshaping and saving of the raw data to an 
+                         architecture specific format. 
         Args:
             csvPath (string)  : path to csv file
             transform (PyT TF): Pytorch tranform to act on data.
@@ -36,22 +39,22 @@ class GefPower(Dataset):
                      0: Trend  1: Month 2-8: day 9: year 10: hour  11-35: data   
             itemLabel(tensor.float): A 1D tensor containg the dependant load 
                      variable.
-       """
-       offset = 35064   # labeled data line offset of original GEF file.
-       self.transform = transform
-       self.mean = 61.32
-       self.std  = 16.71 
-       self.min  = 0.0 
-       self.max  = 104.0 
-       self.maxPower = 315.6
-       self.minPower = 48.4
+        """
+        offset = 35064   # labeled data line offset of original GEF file.
+        self.transform = transform
+        self.mean = 61.32
+        self.std  = 16.71 
+        self.min  = 0.0 
+        self.max  = 104.0 
+        self.maxPower = 315.6
+        self.minPower = 48.4
 
-       fileToRead = csvPath
-       self.baseDate= datetime(2005, 1, 1, 1, 00) # labelled data start date
-       self.reshaped = 0
+        fileToRead = csvPath
+        self.baseDate= datetime(2005, 1, 1, 1, 00) # labelled data start date
+        self.reshaped = 0
 
-       # If raw data has to be reshaped for an architecture, it is done here.
-       if toShape is not None:
+        # If raw data has to be reshaped for an architecture, it is done here.
+        if toShape is not None:
            # Form required file
            fileExt = ".csv"
            if self.transform is not None:
@@ -63,66 +66,45 @@ class GefPower(Dataset):
            # Check if required reshaped file already exists. Otherwise make it now.
            if not os.path.isfile(reshapedPath):
                print(" Data file with required input does not exist. Reshaping raw file now.") 
-               print(reshapedPath)
                self.data    = pd.read_csv(fileToRead, skiprows = offset)
                self.labels  = np.asarray(self.data.iloc[:, 2]) # third column has the load values
                self.data_len = len(self.data.index)
                self.shape_data(toShape, reshapedPath)
            fileToRead = reshapedPath
-           print("Here1"+ fileToRead)
            # New reshaped file does not have the offset unlabeld lines
            # So, we need to account for that.
            dataRange[0] = max(dataRange[0] - offset,0)  
            dataRange[1] = max(dataRange[1] - offset,0)             
-       # if raw data does not have to be reshaped, just read it, taking offset to account.
-       else:
-           if dataRange[0] < offset:
-               print("Labeled Data starts as line {}. Ofsetting accordingly.".format(offset))
-               dataRange[0] = offset
 
-       # IF bounds dont make sense reverese them
-       if dataRange[1] < dataRange[0] :
-           # Except if upper bound is zeor then ignore, and read whole file, starting from lower
-           # bound.
+        # Check for line read range validity. If UB < LB, reverse them, unless UB = 0.
+        # UB = 0, means read the whole file from LB to end.
+        if dataRange[1] < dataRange[0] :
            if dataRange[1] != 0:
                print("Data Range provided in invalid. Upper bound {} is smaller than Lower bound {}! Will read the file from lower bound to end instead!".format(dataRange[1], dataRange[0]))
                temp = dataRange[0]
                dataRange[0] = dataRange[1]
                dataRange[1] = temp
-       print("Here " + fileToRead)
-       self.data    = pd.read_csv(fileToRead, skiprows = dataRange[0], nrows = abs(dataRange[1]-
+        self.data    = pd.read_csv(fileToRead, skiprows = dataRange[0], nrows = abs(dataRange[1]-
                                                                              dataRange[0]))
-       print(self.data.shape) 
-       self.labels  = np.asarray(self.data.iloc[:, 2]) # third column has the load values
-              # Get len integer from Range object
-       self.data_len = len(self.data.index)
+
+        # if raw data does not have to be reshaped, just read it, taking offset to account.
+        if toShape is None: 
+            if dataRange[0] < offset:
+                print("Labeled Data starts as line {}. Offsetting accordingly.".format(offset))
+                dataRange[0] = offset
+            self.labels  = np.asarray(self.data.iloc[:, 2]) # third column has the load values
+        else:
+            self.data = self.data.iloc[:,0:-1] # Last line is label, take it off our data structure
+            self.labels  = np.asarray(self.data.iloc[:, -1]) # Reshaped data has last column as
+                                                             # labels . 
+        # Get len integer from Range object
+        self.data_len = len(self.data.index)
               
-    # End of init
-    # ---------------------------------------------------------------------------------
-
+        # End of init
+        # ---------------------------------------------------------------------------------
    
-    def comp_stats(self):
-        '''
-
-            Call to compute mean, max and 1st order moments.
-            Care, it loads the wholre data set to d that, naively.
-            mean = 0      max = 104
-            mean = 61.327 std = 16.710
-        '''
-        data = np.array(self.data.iloc[:,3:], dtype=float)
-        dmax = np.max(data) 
-        dmean = np.mean(data) 
-        dmin = np.min(data) 
-        dstd = np.std(data) 
-        print("Statistics: \n min:{} max: {}\nmean: {} std: {}".format(dmin, dmax, dmean, dstd))
-        return(dmin, dmax, dmean, dstd)
-
-    # End of compute statistics
-    # ---------------------------------------------------------------------------------
-
     def __getitem__(self, index):
-        '''
-            Description: mandatory function implementation for dataloaders.
+        '''Description: mandatory function implementation for dataloaders.
 
             Returns:    data, label    
         '''
@@ -183,6 +165,10 @@ class GefPower(Dataset):
         
         return (self.data_len) # of how many examples(images?) you have
 
+    # ---------------------------------------------------------------------------------
+    # Custom Functions below this point
+    # ---------------------------------------------------------------------------------
+
     def get_item_size(self):
 
         return  self.__getitem__(1)[0].size()[0]
@@ -197,8 +183,7 @@ class GefPower(Dataset):
     # Start of shape data 
 
     def shape_data(self, architecture, savePath):
-        '''
-            Description: This function reshapes the read file to the required
+        ''' Description: This function reshapes the read file to the required
                          input of the given architecture. If the architecture is
                          not implemented, a printout will be dmake and the dataset
                          will be read with its normal shape.
@@ -218,6 +203,8 @@ class GefPower(Dataset):
 
         # -----------------------------------------------------------------------------------
         # Start the Architecture Reshape -specifc code.
+        # Remember that class names follow CapWords naming convention. Acronyms should be all
+        # caps.
         if architecture == "ANNGreek":
             self.data = self.data.iloc[:, 2:]    # only select load and w1,2 for temperature
                                                   # pandas slice is [lower:upper)  
@@ -247,10 +234,29 @@ class GefPower(Dataset):
             self.labels = self.labels[48:] # first 48 lines are used as data in this architecture
             self.labels = np.reshape(self.labels, (self.labels.shape[0],1))
             reshapedData = np.concatenate([reshapedData, self.labels], axis = 1)
+            print("Reshaped file will be savea at: " + savePath)
             np.savetxt(savePath, reshapedData,  fmt="%.4f", delimiter=",") 
         #-------------------------------------------------------------------------------------            
-   # end of shape data 
-   # -------------------------------------------------------------------------------------------------
+
+    # end of shape data 
+    # -------------------------------------------------------------------------------------------------
+    def comp_stats(self):
+        ''' Call to compute mean, max and 1st order moments.
+            Care, it loads the wholre data set to d that, naively.
+            mean = 0      max = 104
+            mean = 61.327 std = 16.710
+        '''
+        data = np.array(self.data.iloc[:,3:], dtype=float)
+        dmax = np.max(data) 
+        dmean = np.mean(data) 
+        dmin = np.min(data) 
+        dstd = np.std(data) 
+        print("Statistics: \n min:{} max: {}\nmean: {} std: {}".format(dmin, dmax, dmean, dstd))
+        return(dmin, dmax, dmean, dstd)
+
+    # End of compute statistics
+    # ---------------------------------------------------------------------------------
+
 
 #-----------------------------------------------------------------------------------------------------------------------
 #  main function definition. Used to debug.
