@@ -70,18 +70,18 @@ def main():
                     The resulting plots are placed in the Plots folder.
                     The history is placed in the Logs folder.
     '''
+    # -------------------------------------------------------------------------
+    # Start of Parameter definitions
+
     # Variable Definitions
     epochs = 18
     batchSize = 1000
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
-    dataLoadArgs  = dict(device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000)
+    dataLoadArgs  = dict(model = "ANNGreek", device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000)
     # ---|
 
-    # Get the model, and train and test data loader objects here
-    model, trainLoader, testLoader = init(model = "ANNGreek", **dataLoadArgs)
-    
     # Optimizer Declaration and parameter definitions go here.
     gamma = 0.01
     momnt = 0.5
@@ -93,10 +93,16 @@ def main():
     # loss = nn.MSELoss()
     # ---|
 
+    # End of parameter Definitions. Do not alter below this point.
+    # ==========================================================================
+
     # Model Train Invocation and other handling here
     args = []
     args.append(epochs)
     args.append(batchSize)
+    # Get the model, and train and test data loader objects here
+    model, trainLoader, testLoader = init(**dataLoadArgs)
+    # Invoke training an Evaluation
     model.train(args,device, trainLoader, testLoader,optim, loss)
     # ---|
 
