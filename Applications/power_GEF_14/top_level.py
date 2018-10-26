@@ -34,9 +34,9 @@ batch = 1000
 # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
 # delimitered by spaces.
 # GEF_Power.reshape_and_save("./Data/GEF/Load/Task 1/L1-train.csv", as = "ANNGReek") 
-trainSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
+trainSet = GEF_Power.GefPower("../../Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
                               "normalize",dataRange= [0,76799]) 
-testSet = GEF_Power.GefPower("./Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
+testSet = GEF_Power.GefPower("../../Data/GEF/Load/Task 1/L1-train.csv", toShape = "ANNGREEK", transform =
                               "normalize",dataRange= [0,76799]) 
 
 device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
