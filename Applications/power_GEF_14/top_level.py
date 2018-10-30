@@ -20,8 +20,16 @@ from Tools import trainer
 print("Hello from power_GEF_14!")
 
 def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
+    ''' Description: This function handles the model creation with the chosen parameters and
+                     the data loading with chosen batch size and train/test split.  
 
+        Arguments: device: PyTorch identifier of model holder, CPU or GPU, if available .
 
+                   train/test dataRange: Sample range, in raw data file indexing, of train 
+                                         and test sets accordingly.
+
+                   Batch size: Size of batch for data loading  
+    '''
     #------------------------------------------------------------------------------
     # Architecture specifics ------------------------------------------------------
 
@@ -33,6 +41,8 @@ def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRang
         model = ann_forward.ANNLFS().to(device)
     elif model == "MRLSimple": 
         model = MLR.LinearRegression(25).to(device)
+    elif "GLMLF" in model:
+        model = MLR.GLMLFB(model).to(device)
     print(model.get_model_descr())
     # ---|
 
@@ -47,9 +57,10 @@ def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRang
     # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
     # delimitered by spaces.
     # GEF_Power.reshape_and_save("./Data/GEF/Load/Task 1/L1-train.csv", as = "ANNGReek") 
-    trainSet = GEF_Power.GefPower("../../Data/GEF/Load/Task 1/L1-train.csv", toShape = model.descr, transform =
+    dataPath = dir_path + "/../../Data/GEF/Load/Task 1/L1-train.csv"
+    trainSet = GEF_Power.GefPower(dataPath, toShape = model.descr, transform =
                                   "normalize",dataRange= trainDataRange) 
-    testSet = GEF_Power.GefPower("../../Data/GEF/Load/Task 1/L1-train.csv", toShape = model.descr, transform =
+    testSet = GEF_Power.GefPower(dataPath, toShape = model.descr, transform =
                                   "normalize",dataRange= testDataRange) 
 
     # Tell the Loader to bring back shuffled data, use 1 or more worker threads and pin-memory
@@ -62,7 +73,9 @@ def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRang
     print(trainSet.__getitem__(0))
 
     return model, trainLoader, testLoader 
-
+# ------------------------------------------------------------------------------------------------------------------
+# Main Function 
+# parameter and model selection, here.
 def main():
     '''Description: This function is invoced then this top level is called.
                     It take the parsed arguments as input and will train,
@@ -70,17 +83,26 @@ def main():
                     The resulting plots are placed in the Plots folder.
                     The history is placed in the Logs folder.
     '''
-    # -------------------------------------------------------------------------
+    # ==========================================================================
     # Start of Parameter definitions
+    # All Parameter choices done within the section defined by the thick seperator
+    # lines
 
     # Variable Definitions
-    epochs = 18
+    epochs = 1 
     batchSize = 1000
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
     dataLoadArgs  = dict(model = "ANNGreek", device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000)
+    # File, plot and log saving variables. Leaveto None, to save to default locations
+    logSavePath  = None
+    plogSavePath = None
     # ---|
+
+    # Get the model, and train and test data loader objects here
+    # Note: Do not change.
+    model, trainLoader, testLoader = init(**dataLoadArgs)
 
     # Optimizer Declaration and parameter definitions go here.
     gamma = 0.01
@@ -100,20 +122,23 @@ def main():
     args = []
     args.append(epochs)
     args.append(batchSize)
-    # Get the model, and train and test data loader objects here
-    model, trainLoader, testLoader = init(**dataLoadArgs)
+
     # Invoke training an Evaluation
     model.train(args,device, trainLoader, testLoader,optim, loss)
     # ---|
 
     # Report saving and printouts go here
-    print(model.get_model_descr())
+    print("Learned model:\n" + model.get_model_descr())
+    print("Training history:")
     print(model.history)
-    logFilePath = dir_path + "/Logs/log1.txt"
-    model.save_history(logFilePath)
+    model.save_history(logSavePath)
+    model.plot()
+    titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)
+    model.save_plots(plogSavePath, titleExt)
     # ---|
 
-#  End of main ----------------------------------------------------------------
-# -----------------------------------------------------------------------------
+#  End of main
+#  -------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     main()
