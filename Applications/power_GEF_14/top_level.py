@@ -89,7 +89,7 @@ def main():
     # lines
 
     # Variable Definitions
-    epochs = 30
+    epochs = 1 
     batchSize = 1000
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
@@ -133,7 +133,8 @@ def main():
     print(model.history)
     model.save_history(logSavePath)
     model.plot()
-    model.save_plots(plogSavePath)
+    titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)
+    model.save_plots(plogSavePath, titleExt)
     # ---|
 
 #  End of main

@@ -129,7 +129,7 @@ class ANNGreek(nn.Module):
         self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
 
     # Save plots
-    def save_plots(self, savePath = None):
+    def save_plots(self, savePath = None, titleExt = None):
         '''Description: This function saves all plots of model.
                         If no target path is given, the default is selected.
         '''
@@ -141,9 +141,12 @@ class ANNGreek(nn.Module):
 
         for i, f in enumerate(self.plots):
             if f is not None:
-                fileExt = "/" + self.descr + "-" + str(i) + ".png"
-                print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
-                f.savefig(savePath + fileExt)
+                if titleExt is not None:
+                    fileExt = "/" + self.descr + "-" + str(i) + "-" + titleExt + ".png"
+                else:
+                    fileExt = "/" + self.descr + "-" + str(i) + ".png"
+            print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
+            f.savefig(savePath + fileExt)
 
     def report(self):
 

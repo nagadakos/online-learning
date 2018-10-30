@@ -155,8 +155,8 @@ class GLMLFB(nn.Module):
         for i, f in enumerate(self.plots):
             if f is not None:
                 fileExt = "/" + self.descr + "-" + str(i) + ".png"
-                print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
-                f.savefig(savePath + fileExt)
+            print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
+            f.savefig(savePath + fileExt)
 
     def report(self):
 
