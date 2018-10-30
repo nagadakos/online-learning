@@ -73,7 +73,9 @@ def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRang
     print(trainSet.__getitem__(0))
 
     return model, trainLoader, testLoader 
-
+# ------------------------------------------------------------------------------------------------------------------
+# Main Function 
+# parameter and model selection, here.
 def main():
     '''Description: This function is invoced then this top level is called.
                     It take the parsed arguments as input and will train,
@@ -134,7 +136,8 @@ def main():
     model.save_plots(plogSavePath)
     # ---|
 
-#  End of main ----------------------------------------------------------------
-# -----------------------------------------------------------------------------
+#  End of main
+#  -------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     main()
