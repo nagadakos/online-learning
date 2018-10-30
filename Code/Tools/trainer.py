@@ -32,11 +32,11 @@ class QuantileLoss(nn.Module):
         print(self.loss)
 
     def forward(self, x, target):
-        
+        a = x 
         for i,q in enumerate(self.q): 
-            x = q* F.relu(target- x) + (1-q) * F.relu(x - target)
+            a += q* F.relu(target- x) + (1-q) * F.relu(x - target)
             # self.loss[i] = a.mean() # Mean value of all elements, scalar.
-        x = x.mean()
+        x = a.mean()
         return x 
 # End of Quantile Loss
 # ---------------------------------------------------------------------------------
@@ -52,6 +52,7 @@ def save_log(filePath, history):
                      in the ridx file. They contain the relevant metric from all epochs
                      of training / testing, if they exist.
     '''
+    
     with open(filePath, 'w') as f:
         for i in range(len(history[0])): 
             for j in range(len(history)):

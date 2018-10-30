@@ -15,8 +15,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 tools_path = os.path.join(dir_path, "../")
 sys.path.insert(0, tools_path)
 
-from Tools import trainer
+from Tools import trainer, plotter
 import regression_idx as ridx
+import plot_idx as pidx
 
 
 # End Of imports -----------------------------------------------------------------
@@ -51,6 +52,8 @@ class ANNGreek(nn.Module):
         self.linear = nn.Linear(inSize, 1)  # 10 nodes are specified in the thesis.
         self.loss = loss
         self.descr = "ANNGreek" 
+        # The list below holds any plotted figure of the model
+        self.plots = [None] * pidx.plotSize
 
     def forward(self, x): 
         x = F.relu(self.linear(x)) 
@@ -75,10 +78,21 @@ class ANNGreek(nn.Module):
          
         return x
 
-    def save_history(self, filePath):
-        trainer.save_log(filePath, self.history)
+    def save_history(self, filePath = None):
+
+        if filePath is not None:
+            saveFile = filePath
+        else:
+            saveFile = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr
+            # Create the Target Directory if does not exist.
+            if not os.path.exists(saveFile):
+                os.mkdir(saveFile)
+            saveFile += "/log1.txt"
+
+        trainer.save_log(saveFile, self.history)
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction = nn.MSELoss()):
+
         epochs = args[0]
         
         trainerArgs = args
@@ -96,6 +110,40 @@ class ANNGreek(nn.Module):
         testArgs = args
         trainer.test_regressor(self, args, device, testLoader, lossFunction) 
 
+    def plot(self, filePath = None, logPath = None):
+        ''' Description: This function is a wrapper for the appropriate plot function
+                         Found in the Tools package. It handles any architecture spec
+                         cific details, that the general plot function does not, such
+                         as: how many logs to read  and plot in the same graph.
+            Arguments:   logPath  (string): Location of the log files to read.
+        '''
+        # Args is currently empty. Might have a use for some plotting arguments
+        # In the future. Currently none are implemented.
+        args = []
+        if logPath is not None:
+            readLog = logPath
+        else:
+            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" +self.descr + "/log1.txt"
+        # Form plot title and facilate plotting
+        title = self.descr + " Learning Curve"
+        self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
+
+    # Save plots
+    def save_plots(self, savePath = None):
+        '''Description: This function saves all plots of model.
+                        If no target path is given, the default is selected.
+        '''
+        if savePath is None:
+            savePath = dir_path + "/../../Applications/power_GEF_14/Plots/" + self.descr
+            # Create the Target Directory if does not exist.
+            if not os.path.exists(savePath):
+                os.mkdir(savePath)
+
+        for i, f in enumerate(self.plots):
+            if f is not None:
+                fileExt = "/" + self.descr + "-" + str(i) + ".png"
+                print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
+                f.savefig(savePath + fileExt)
 
     def report(self):
 

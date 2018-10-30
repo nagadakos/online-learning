@@ -16,7 +16,6 @@ epochs = 0
 # Sanity Print
 # print(reps)
 
-
 def plot_regressor(filePath, args, title):
 
     files = [filePath]
@@ -24,10 +23,10 @@ def plot_regressor(filePath, args, title):
     for i,f in enumerate(files):
         reps.append([[] for i in range(ridx.logSize)])
 
-        print(i)
-        print("Size of reps list: {} {}".format(len(reps),len(reps[0])))
+        # print(i)
+        # print("Size of reps list: {} {}".format(len(reps),len(reps[0])))
         with open(f, 'r') as p:
-            print("i is {}".format(i))
+            # print("i is {}".format(i))
             for j,l in enumerate(p):
                 # Ignore last character from line parser as it is just the '/n' char.
                 report = l[:-1].split(' ')
@@ -39,7 +38,7 @@ def plot_regressor(filePath, args, title):
                 reps[i][ridx.testLoss].append(report[ridx.testLoss])
 
             epochs = len(reps[0][0])
-
+    print("Plots epochs: {}" .format(epochs))
     for i, rep in enumerate(reps):
         a = np.asarray(rep, dtype = np.float32)
         epchs = np.arange(1, epochs+1)
@@ -52,6 +51,12 @@ def plot_regressor(filePath, args, title):
         # plt.plot(epchs, a[2], 'm--', epchs, b[2], 'c--')
         labels = ['Train Loss', 'Test Loss']
         plt.legend( labels, loc='lower right')
+        # plt.close()
+        # plt.draw()
+        # plt.pause(15)
+        return fig
+
+# def save_plots(savePath):
 
 #************************************
 #Function: Plot Accuracy

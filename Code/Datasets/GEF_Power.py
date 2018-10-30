@@ -21,7 +21,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 class GefPower(Dataset):
-    def __init__(self, csvPath, toShape = None, transform = None, dataRange = [0, 0]):
+    def __init__(self, csvPath, toShape = None, transform = None, dataRange = [0, 0], trainMode =1):
         """ Description: This class defines the tranformation of a raw data csv file
                          to a PyTorch dataset. If required it should handle the 
                          complete reshaping and saving of the raw data to an 
@@ -48,7 +48,7 @@ class GefPower(Dataset):
         self.max  = 104.0 
         self.maxPower = 315.6
         self.minPower = 48.4
-
+        self.trainMode = trainMode
         fileToRead = csvPath
         self.baseDate= datetime(2005, 1, 1, 1, 00) # labelled data start date
         self.reshaped = 0
@@ -59,7 +59,8 @@ class GefPower(Dataset):
            fileExt = ".csv"
            if self.transform is not None:
                fileExt = "_" + transform + ".csv"
-           relativePathBody = "/../../Applications/power_GEF_14/ShapedData/GEF14_power_reshaped_as_ANNGreek"
+           relativePathBody = "/../../Applications/power_GEF_14/ShapedData/GEF14_power_reshaped_as_"
+           relativePathBody += toShape
            reshapedPath = dir_path+ relativePathBody + fileExt
            # Indicate that the reshaped input is required
            self.reshaped = 1
@@ -195,6 +196,7 @@ class GefPower(Dataset):
         trend = np.arange(0, self.data_len, dtype=np.intc)
         date  = list(map(lambda x: self.baseDate + timedelta(hours=np.asscalar(x)), trend))
         weekday = list(map(lambda x: x.weekday(), date))
+        month = list(map(lambda x: x.month, date))
 
         # # Transform day value to 1 hot.
         to1Hot = np.zeros((self.data_len, 7))
@@ -205,14 +207,16 @@ class GefPower(Dataset):
         # Start the Architecture Reshape -specifc code.
         # Remember that class names follow CapWords naming convention. Acronyms should be all
         # caps.
+        self.data = self.data.iloc[:, 2:]    # only select load and w1,2 for temperature
+                                                  # pandas slice is [lower:upper) 
+        temperatures = np.array(self.data.iloc[:, 1:], dtype = float)
+        loads = np.array(self.data.iloc[:,0], dtype = float)
+
         if architecture == "ANNGreek":
-            self.data = self.data.iloc[:, 2:]    # only select load and w1,2 for temperature
-                                                  # pandas slice is [lower:upper)  
-            temperatures = np.array(self.data.iloc[:, 1:], dtype = float)
+
             temperatures[:,0] = np.amin(temperatures, axis = 1)
             temperatures[:,1] = np.amax(temperatures, axis = 1)
             temperatures = temperatures[:, :2]
-            loads = np.array(self.data.iloc[:,0], dtype = float)
 
             #  59 = 2 *24 power readings + 7 for the days encoding + 2* (min + max) temperature values 
             reshapedData = np.zeros((self.data_len-48, 48+7+4))
@@ -225,17 +229,75 @@ class GefPower(Dataset):
             if self.transform is not None:
                 if self.transform == "normalize":
                     reshapedData[:, 0:47] -= self.minPower
-                    reshapedData[:, 0:47] /= self.maxPower
+                    reshapedData[:, 0:47] /= (self.maxPower - self.minPower)
                     reshapedData[:,55:]   -= self.min
-                    reshapedData[:,55:]   /= self.max
+                    reshapedData[:,55:]   /= (self.max - self.min)
                     self.labels -= self.minPower
-                    self.labels /= self.maxPower
+                    self.labels /= (self.maxPower - self.minPower)
             # Append the labels
             self.labels = self.labels[48:] # first 48 lines are used as data in this architecture
             self.labels = np.reshape(self.labels, (self.labels.shape[0],1))
-            reshapedData = np.concatenate([reshapedData, self.labels], axis = 1)
-            print("Reshaped file will be savea at: " + savePath)
-            np.savetxt(savePath, reshapedData,  fmt="%.4f", delimiter=",") 
+
+        #-------------------------------------------------------------------------------------            
+
+        elif architecture == "GLMLF-C2":
+            
+            # Y = Trend + Month + T_Max_month + T_Max_month^2 + T_Max_Month^3
+            temperatures[:,0] = np.amax(temperatures, axis = 1)
+            temperatures = temperatures[:, :1]
+            #  16 = 1 for Trend, 12 for Month encoding, 1 t_max, 1 T_max^2, 1 T_max^3
+            reshapedData = np.zeros((self.data_len, 1+12+1+1+1))
+            T_max0 = 77 # Got from the raw data
+            j = 0
+            # # Transform day value to 1 hot.
+            to1HotMonth = np.zeros((self.data_len, 12))
+            for i, w in enumerate(month):
+                to1HotMonth[i, w-1] = 1 # month ranges from 1 to 12
+
+            for i in range(reshapedData.shape[0]):
+                reshapedData[i][0] = trend[i]
+                reshapedData[i][1:13] = to1HotMonth[i,:]
+                
+                # Find monthly max
+                if self.trainMode == 1:
+                    # curMax = maxMonthlytemperatures[i]
+                    curMax = np.amax(temperatures[0:i+1])   # default flatten is row-major
+                else:
+                    curMax = np.amax(temperatures[0:i+1])   # default flatten is row-major. Remember,
+                                                            # python slice is not inclusive of the upper bound
+                reshapedData[i][13] = curMax  
+                reshapedData[i][14] = curMax * curMax
+                reshapedData[i][15] = curMax * curMax * curMax
+
+            if self.transform is not None:
+                # Use variable below for normalization to 0-1 
+                p1_min   = self.min
+                p1_max   = self.max
+                p1_denom = p1_max - p1_min
+                p2_min   = self.min * self.min
+                p2_max   = self.max * self.max
+                p2_denom = p2_max - p2_min
+                p3_min   = self.min * self.min * self.min
+                p3_max   = self.max * self.max * self.max
+                p3_denom = p3_max - p3_min
+
+                if self.transform == "normalize":
+                    reshapedData[:,13]   -= p1_min
+                    reshapedData[:,13]   /= p1_denom
+                    reshapedData[:,14]   -= p2_min
+                    reshapedData[:,14]   /= p2_denom
+                    reshapedData[:,15]   -= p3_min
+                    reshapedData[:,15]   /= p3_denom
+
+                    self.labels -= self.minPower
+                    self.labels /= (self.maxPower - self.minPower)
+            # By this point labels are in the shape (n,), as in all elements in one cell
+            # Nee to transform it to (n,1) so it becomes a proper array and can be concatenated
+            self.labels = np.reshape(self.labels, (self.labels.shape[0],1))
+        print("Len of data {}, len of labels {}".format(reshapedData.shape, self.labels.shape))
+        reshapedData = np.concatenate([reshapedData, self.labels], axis = 1)
+        print("Reshaped file will be saved at: " + savePath)
+        np.savetxt(savePath, reshapedData,  fmt="%.4f", delimiter=",") 
         #-------------------------------------------------------------------------------------            
 
     # end of shape data 
