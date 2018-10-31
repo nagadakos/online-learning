@@ -4,7 +4,7 @@ import torchvision.datasets as tdata
 import torchvision.transforms as tTrans
 import os
 import torch.nn as nn
-
+import numpy as np
 
 # WARNING:  This is relevant to the directory that CALLS this toplevel
 # Module, rather than the position of this module.
@@ -19,7 +19,7 @@ from Architecture import MLR, ann_forward, ann_greek
 from Tools import trainer
 print("Hello from power_GEF_14!")
 
-def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
+def init(model = None, quantiles = [0.9], device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -34,6 +34,7 @@ def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRang
     # Architecture specifics ------------------------------------------------------
 
     # Model Declaration 
+    outputSize = len(quantiles)
     print("Creating Model: {} at device: {}" .format(model, device))
     if model == "ANNGreek":
         model = ann_greek.ANNGreek(59).to(device)
@@ -42,7 +43,7 @@ def init(model = None, device = "cpu", trainDataRange = [0, 76799], testDataRang
     elif model == "MRLSimple": 
         model = MLR.LinearRegression(25).to(device)
     elif "GLMLF" in model:
-        model = MLR.GLMLFB(model).to(device)
+        model = MLR.GLMLFB(model, outputSize).to(device)
     print(model.get_model_descr())
     # ---|
 
@@ -89,12 +90,15 @@ def main():
     # lines
 
     # Variable Definitions
-    epochs = 1 
+    epochs = 30 
     batchSize = 1000
+    # quantiles = [0.01*i for i in range(1,100)]
+    quantiles = [0.9]
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
-    dataLoadArgs  = dict(model = "ANNGreek", device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000)
+    dataLoadArgs  = dict(model = "GLMLF-C2", quantiles = quantiles, device = device, trainDataRange
+                         = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
     # File, plot and log saving variables. Leaveto None, to save to default locations
     logSavePath  = None
     plogSavePath = None
@@ -105,13 +109,13 @@ def main():
     model, trainLoader, testLoader = init(**dataLoadArgs)
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = 0.01
+    gamma = 0.1
     momnt = 0.5
-    optim = sgd.SGD(model.parameters(), weight_decay = 3, lr=gamma, momentum=momnt)
+    optim = sgd.SGD(model.parameters(), weight_decay = 0.1, lr=gamma, momentum=momnt)
     # ---|
 
     # Loss Function Declaration and parameter definitions go here.
-    loss = trainer.QuantileLoss(0.9)
+    loss = trainer.QuantileLoss(quantiles)
     # loss = nn.MSELoss()
     # ---|
 
