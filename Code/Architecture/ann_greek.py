@@ -46,10 +46,11 @@ class ANNGreek(nn.Module):
     '''
 
     history = [[] for i in range(ridx.logSize)]
-    def __init__(self, inSize = 2, loss = nn.MSELoss()): 
+    def __init__(self, inSize = 2, outSize = 1, loss = nn.MSELoss()): 
         super(ANNGreek, self).__init__() 
         self.firstPass = 1
-        self.linear = nn.Linear(inSize, 1)  # 10 nodes are specified in the thesis.
+        self.linear = nn.Linear(inSize, 24)  # 10 nodes are specified in the thesis.
+        self.linear2 = nn.Linear(24, outSize)  # 10 nodes are specified in the thesis.
         self.loss = loss
         self.descr = "ANNGreek" 
         # The list below holds any plotted figure of the model
@@ -57,6 +58,7 @@ class ANNGreek(nn.Module):
 
     def forward(self, x): 
         x = F.relu(self.linear(x)) 
+        x = F.relu(self.linear2(x)) 
         return x 
 
     def get_model_descr(self):

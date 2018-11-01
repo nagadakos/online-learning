@@ -37,7 +37,7 @@ def init(model = None, quantiles = [0.9], device = "cpu", trainDataRange = [0, 7
     outputSize = len(quantiles)
     print("Creating Model: {} at device: {}" .format(model, device))
     if model == "ANNGreek":
-        model = ann_greek.ANNGreek(59).to(device)
+        model = ann_greek.ANNGreek(59, outputSize).to(device)
     elif model == "MLRBIU":
         model = ann_forward.ANNLFS().to(device)
     elif model == "MRLSimple": 
@@ -90,14 +90,20 @@ def main():
     # lines
 
     # Variable Definitions
-    epochs = 30 
+    epochs = 3 
     batchSize = 1000
-    # quantiles = [0.01*i for i in range(1,100)]
+
     quantiles = [0.9]
+    # Loss Function Declaration and parameter definitions go here.
+    quantiles = [0.01*i for i in range(1,100)]
+    loss = trainer.QuantileLoss(quantiles)
+    # loss = nn.MSELoss()
+    # ---|
+
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
-    dataLoadArgs  = dict(model = "GLMLF-C2", quantiles = quantiles, device = device, trainDataRange
+    dataLoadArgs  = dict(model = "ANNGreek", quantiles = quantiles, device = device, trainDataRange
                          = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
     # File, plot and log saving variables. Leaveto None, to save to default locations
     logSavePath  = None
@@ -109,16 +115,12 @@ def main():
     model, trainLoader, testLoader = init(**dataLoadArgs)
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = 0.1
+    gamma = 0.01
     momnt = 0.5
     optim = sgd.SGD(model.parameters(), weight_decay = 0.1, lr=gamma, momentum=momnt)
     # ---|
 
-    # Loss Function Declaration and parameter definitions go here.
-    loss = trainer.QuantileLoss(quantiles)
-    # loss = nn.MSELoss()
-    # ---|
-
+    
     # End of parameter Definitions. Do not alter below this point.
     # ==========================================================================
 
@@ -136,8 +138,10 @@ def main():
     print("Training history:")
     print(model.history)
     model.save_history(logSavePath)
+    # plotArgs = []
     model.plot()
-    titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)
+    lossDescr =  loss.descr if  isinstance(loss, trainer.QuantileLoss) else "MSE"
+    titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)  +"-"+lossDescr
     model.save_plots(plogSavePath, titleExt)
     # ---|
 
