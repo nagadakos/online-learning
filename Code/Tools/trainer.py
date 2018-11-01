@@ -105,7 +105,10 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
             # print("Prediction: {}, labels: {}" .format(pred, label))
 
         # compute loss
-        loss, lossMatrix = lossFunction.forward(pred, label)
+        if isinstance(lossFunction, QuantileLoss):
+            loss, lossMatrix = lossFunction.forward(pred, label)
+        else:
+            loss = lossFunction.forward(pred, label)
         MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
         MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
         # Backpropagation part

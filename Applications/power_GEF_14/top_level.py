@@ -37,7 +37,7 @@ def init(model = None, quantiles = [0.9], device = "cpu", trainDataRange = [0, 7
     outputSize = len(quantiles)
     print("Creating Model: {} at device: {}" .format(model, device))
     if model == "ANNGreek":
-        model = ann_greek.ANNGreek(59).to(device)
+        model = ann_greek.ANNGreek(59, outputSize).to(device)
     elif model == "MLRBIU":
         model = ann_forward.ANNLFS().to(device)
     elif model == "MRLSimple": 
@@ -58,7 +58,8 @@ def init(model = None, quantiles = [0.9], device = "cpu", trainDataRange = [0, 7
     # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
     # delimitered by spaces.
     # GEF_Power.reshape_and_save("./Data/GEF/Load/Task 1/L1-train.csv", as = "ANNGReek") 
-    dataPath = dir_path + "/../../Data/GEF/Load/Task 1/L1-train.csv"
+    # dataPath = dir_path + "/../../Data/GEF/Load/Task 1/L1-train.csv"
+    dataPath = None
     trainSet = GEF_Power.GefPower(dataPath, toShape = model.descr, transform =
                                   "normalize",dataRange= trainDataRange) 
     testSet = GEF_Power.GefPower(dataPath, toShape = model.descr, transform =
@@ -92,12 +93,18 @@ def main():
     # Variable Definitions
     epochs = 30 
     batchSize = 1000
-    # quantiles = [0.01*i for i in range(1,100)]
     quantiles = [0.9]
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # Loss Function Declaration and parameter definitions go here.
+    # quantiles = [0.01*i for i in range(1,100)]
+    loss = trainer.QuantileLoss(quantiles)
+    # loss = nn.MSELoss()
+    # ---|
+
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
-    dataLoadArgs  = dict(model = "GLMLF-C2", quantiles = quantiles, device = device, trainDataRange
+    dataLoadArgs  = dict(model = "ANNGreek", quantiles = quantiles, device = device, trainDataRange
                          = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
     # File, plot and log saving variables. Leaveto None, to save to default locations
     logSavePath  = None
@@ -109,16 +116,11 @@ def main():
     model, trainLoader, testLoader = init(**dataLoadArgs)
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = 0.1
+    gamma = 0.01
     momnt = 0.5
     optim = sgd.SGD(model.parameters(), weight_decay = 0.1, lr=gamma, momentum=momnt)
     # ---|
-
-    # Loss Function Declaration and parameter definitions go here.
-    loss = trainer.QuantileLoss(quantiles)
-    # loss = nn.MSELoss()
-    # ---|
-
+    
     # End of parameter Definitions. Do not alter below this point.
     # ==========================================================================
 

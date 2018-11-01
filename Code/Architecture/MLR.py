@@ -16,7 +16,7 @@ tools_path = os.path.join(dir_path, "../")
 sys.path.insert(0, tools_path)
 
 from Tools import trainer, plotter
-import regression_idx as ridx
+import Tools.regression_idx as ridx
 import plot_idx as pidx
 
 
