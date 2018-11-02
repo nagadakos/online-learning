@@ -101,7 +101,8 @@ class GefPower(Dataset):
         # Reshaped data had the label, always at the last column.
         # Raw data has the labels at 3 column.
         if self.toShape is not None:
-            labels = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, -1]) # Reshaped data has last column as
+            # labels = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, -1]) # Reshaped data has last column as
+            labels = data.iloc[self.lowerBnd:self.upperBnd, -1] # Reshaped data has last column as
             data   = data.iloc[self.lowerBnd:self.upperBnd,0:-1] # Last line is label, take it off our data structure
         else:
             labels  = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, 2]) # third column has the load values
@@ -164,7 +165,7 @@ class GefPower(Dataset):
         # if the reshaped data file is needed.
         else:
             itemData = np.array(self.data.iloc[index,:], dtype = float)
-            itemLabel = np.array(self.labels[index], dtype = float)
+            itemLabel = np.array(self.labels.iloc[index], dtype = float)
                     # Turn numpy arrays to Tensors for pytorch usage.
         itemData = torch.from_numpy(itemData).float()
         itemLabel = torch.from_numpy(itemLabel).float()
@@ -429,7 +430,7 @@ def get_files_from_path(targetPath, expression):
 if __name__ == "__main__":
 
     print(" GEF Power Dataset as Main ")
-    myDataset = GefPower('../../Data/GEF/Load', toShape = "GLMLF-C2", transform = "normalize",
+    myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
                          dataRange=[0, 76799])
 
     myDataset2 = GefPower(task = "Task 1", transform = "normalize",
@@ -437,9 +438,9 @@ if __name__ == "__main__":
 
     # print(myDataset)
     # myDataset.get_data_descr()
-    # print(myDataset.__getitem__(1))
+    print(myDataset.__getitem__(1))
     # print(myDataset.__len__())
-    print(myDataset2.__len__())
-    item, label  = myDataset2.__getitem__(3)
-    print(item, label)
+    # print(myDataset2.__len__())
+    # item, label  = myDataset2.__getitem__(3)
+    # print(item, label)
     print("Size of an instance {}".format(myDataset.get_item_size()))

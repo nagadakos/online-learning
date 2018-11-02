@@ -50,7 +50,7 @@ class ANNGreek(nn.Module):
         super(ANNGreek, self).__init__() 
         self.firstPass = 1
         self.linear = nn.Linear(inSize, 24)  # 10 nodes are specified in the thesis.
-        self.linear2 = nn.Linear(24, 1)  # 10 nodes are specified in the thesis.
+        self.linear2 = nn.Linear(24, outSize)  # 10 nodes are specified in the thesis.
         self.loss = loss
         self.descr = "ANNGreek" 
         # The list below holds any plotted figure of the model
@@ -97,8 +97,8 @@ class ANNGreek(nn.Module):
 
         epochs = args[0]
         
-        trainerArgs = args
-        testerArgs = args
+        trainerArgs = args.copy()
+        testerArgs = args.copy()
         testerArgs[1] *= 4 
 
         for e in range(epochs):

@@ -26,6 +26,7 @@ class QuantileLoss(nn.Module):
             self.q = q
         else:
             self.q = [q]
+        self.descr = "QuantileLoss_" + str(len(self.q))
 
     def forward(self, x, target):
         loss = [] # place holder for each quantile loss.
@@ -91,7 +92,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     '''
     MAE   = 0
     MAPE  = 0
-
+    e = 0.001
     for idx, (data, label) in enumerate(indata):
         data, label = data.to(device), label.to(device)
         # forward pass calculate output of model
@@ -110,7 +111,8 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
         else:
             loss = lossFunction.forward(pred, label)
         MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
-        MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
+        MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label+e).sum().item()
+
         # Backpropagation part
         # 1. Zero out Grads
         optim.zero_grad()
@@ -123,12 +125,11 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
             print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(indata),
                                                                            pred.shape[0], loss.item() ))
             factor = (idx+1)*pred.shape[0]
-            print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE /factor))
-                
+            print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
 
     # Log the current train loss
     MAE  = MAE/len(indata.dataset)
-    MAPE = MAPE/len(indata.dataset)
+    MAPE = MAPE*100/len(indata.dataset)
     model.history[ridx.trainLoss].append(loss.item())   #get only the loss value
     model.history[ridx.trainMAE].append(MAE)
     model.history[ridx.trainMAPE].append(MAPE)

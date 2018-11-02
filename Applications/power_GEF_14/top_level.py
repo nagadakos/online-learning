@@ -91,15 +91,15 @@ def main():
     # lines
 
     # Variable Definitions
-    epochs = 30 
+    epochs = 30
     batchSize = 1000
     quantiles = [0.9]
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Loss Function Declaration and parameter definitions go here.
     # quantiles = [0.01*i for i in range(1,100)]
-    loss = trainer.QuantileLoss(quantiles)
-    # loss = nn.MSELoss()
+    # loss = trainer.QuantileLoss(quantiles)
+    loss = nn.MSELoss()
     # ---|
 
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
@@ -134,7 +134,7 @@ def main():
     # ---|
 
     # Report saving and printouts go here
-    print("Learned model:\n" + model.get_model_descr())
+    # print("Learned model:\n" + model.get_model_descr())
     print("Training history:")
     print(model.history)
     model.save_history(logSavePath)
