@@ -94,6 +94,12 @@ def main():
     epochs = 30
     batchSize = 1000
     quantiles = [0.9]
+    # Loss Function Declaration and parameter definitions go here.
+    quantiles = [0.01*i for i in range(1,100)]
+    loss = trainer.QuantileLoss(quantiles)
+    # loss = nn.MSELoss()
+    # ---|
+
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Loss Function Declaration and parameter definitions go here.
@@ -138,6 +144,7 @@ def main():
     print("Training history:")
     print(model.history)
     model.save_history(logSavePath)
+    # plotArgs = []
     model.plot()
     lossDescr =  loss.descr if  isinstance(loss, trainer.QuantileLoss) else "MSE"
     titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)  +"-"+lossDescr

@@ -111,7 +111,8 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
         if isinstance(lossFunction, QuantileLoss):
             loss, lossMatrix = lossFunction.forward(pred, label)
         else:
-            loss = lossFunction.forward(pred, label)
+            loss = lossFunction(pred, label)
+
         MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
         MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label+e).sum().item()
 
