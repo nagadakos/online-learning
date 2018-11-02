@@ -31,12 +31,14 @@ class QuantileLoss(nn.Module):
     def forward(self, x, target):
         loss = [] # place holder for each quantile loss.
         for i,q in enumerate(self.q): 
-            # Each Element of the list, is the sum of losses of each output for each quantile
-            # The end results is the element at list[i] is of size: (n, numberOfQuantiles).
-            loss.append( (q* F.relu(target- x) + (1-q) * F.relu(x - target)).sum(dim=1, keepdim=True))
+            # Each Element of the list, is the quantile loss of each quantile with each output node.
+            # So quantile 1 get multipled with output node 1, for each sample.
+            # The end results is the element at list[i] is of size: (n, 1).
+            x_col = torch.reshape(x[:,i], (len(x),1))
+            loss.append( (q* F.relu(target- x_col) + (1-q) * F.relu(x_col - target)).sum(dim=1, keepdim=True))
 
         # Convert List quantile loss Tensors to Tensor.
-        # list is len (NumOfQuantiles) and items are(n,). It becomes a tensor of
+        # list is len (NumOfQuantiles) and items are(n,1). It becomes a tensor of
         # shape (n, numOfQuantiles)
         loss = torch.cat(loss, dim =1)
         # Compute Mean of all Quantile loss for the whole batch. Returned loss must
