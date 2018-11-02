@@ -86,34 +86,7 @@ class GefPower(Dataset):
     # End of init
     # ---------------------------------------------------------------------------------
 
-    def load_data(self, task):
-
-        for folder, files in self.dataContents.items():
-            if folder == task:
-                fileToRead = join(self.activeDataFolder, folder, files[0]) 
-                break
-        print(fileToRead)
-        # Read into pandas the appropriate data file
-        data = pd.read_csv(fileToRead)
-        # Check if given read data bounds are valid. If not compensate in the function below.
-        self.lowerBnd, self.upperBnd = self.check_bound_validity(len(data.index), task)
-        print("LB: {} UP: {}".format(self.lowerBnd, self.upperBnd))
-        # Reshaped data had the label, always at the last column.
-        # Raw data has the labels at 3 column.
-        if self.toShape is not None:
-            # labels = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, -1]) # Reshaped data has last column as
-            labels = data.iloc[self.lowerBnd:self.upperBnd, -1] # Reshaped data has last column as
-            data   = data.iloc[self.lowerBnd:self.upperBnd,0:-1] # Last line is label, take it off our data structure
-        else:
-            labels  = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, 2]) # third column has the load values
-            data   = data.iloc[self.lowerBnd:self.upperBnd, 3:] # Weather data starts at column 3+
-
-        print("Len of dataset: {}".format(len(data.index)))
-        return data, labels
-
-    # End of load data
-    # ---------------------------------------------------------------------------------
-
+    
     def __getitem__(self, index):
         '''Description: mandatory function implementation for dataloaders.
 
@@ -179,9 +152,9 @@ class GefPower(Dataset):
         
         return (self.data_len) # of how many examples(images?) you have
 
-    # ---------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------
     # Custom Functions below this point
-    # ---------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------
 
     def get_item_size(self):
 
@@ -365,6 +338,34 @@ class GefPower(Dataset):
     # End of create shaped data
     # ---------------------------------------------------------------------------------
 
+    def load_data(self, task):
+
+        for folder, files in self.dataContents.items():
+            if folder == task:
+                fileToRead = join(self.activeDataFolder, folder, files[0]) 
+                break
+        print(fileToRead)
+        # Read into pandas the appropriate data file
+        data = pd.read_csv(fileToRead)
+        # Check if given read data bounds are valid. If not compensate in the function below.
+        self.lowerBnd, self.upperBnd = self.check_bound_validity(len(data.index), task)
+        print("LB: {} UP: {}".format(self.lowerBnd, self.upperBnd))
+        # Reshaped data had the label, always at the last column.
+        # Raw data has the labels at 3 column.
+        if self.toShape is not None:
+            # labels = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, -1]) # Reshaped data has last column as
+            labels = data.iloc[self.lowerBnd:self.upperBnd, -1] # Reshaped data has last column as
+            data   = data.iloc[self.lowerBnd:self.upperBnd,0:-1] # Last line is label, take it off our data structure
+        else:
+            labels  = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, 2]) # third column has the load values
+            data   = data.iloc[self.lowerBnd:self.upperBnd, 3:] # Weather data starts at column 3+
+
+        print("Len of dataset: {}".format(len(data.index)))
+        return data, labels
+
+    # End of load data
+    # ---------------------------------------------------------------------------------
+
     def check_bound_validity(self, fileSize, task):
         
         dataRange = [self.lowerBnd, self.upperBnd]
@@ -405,7 +406,8 @@ class GefPower(Dataset):
             dataRange[1] = fileSize
 
         return dataRange[0], dataRange[1]
-
+# End of Class
+#=======================================================================
 
 def get_files_from_path(targetPath, expression):
 
