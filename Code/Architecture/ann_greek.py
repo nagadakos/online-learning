@@ -104,7 +104,7 @@ class ANNGreek(nn.Module):
         for e in range(epochs):
            trainerArgs[0] = e 
            testerArgs[0] = e 
-           trainer.train_regressor(self, args, device, trainLoader, optim, lossFunction)
+           trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction)
            self.test(testerArgs, device, testLoader, lossFunction)
     
     # Testing and error reports are done here

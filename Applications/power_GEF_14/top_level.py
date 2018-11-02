@@ -97,9 +97,9 @@ def main():
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Loss Function Declaration and parameter definitions go here.
-    # quantiles = [0.01*i for i in range(1,100)]
-    # loss = trainer.QuantileLoss(quantiles)
-    loss = nn.MSELoss()
+    quantiles = [0.01*i for i in range(1,100)]
+    loss = trainer.QuantileLoss(quantiles)
+    # loss = nn.MSELoss()
     # ---|
 
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
