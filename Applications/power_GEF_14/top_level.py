@@ -91,7 +91,7 @@ def main():
     # lines
 
     # Variable Definitions
-    epochs = 30
+    epochs = 100
     batchSize = 1000
     quantiles = [0.9]
     # Loss Function Declaration and parameter definitions go here.
@@ -123,7 +123,7 @@ def main():
 
     # Optimizer Declaration and parameter definitions go here.
     gamma = 0.01
-    momnt = 0.5
+    momnt = 0.7
     optim = sgd.SGD(model.parameters(), weight_decay = 0.1, lr=gamma, momentum=momnt)
     # ---|
     
