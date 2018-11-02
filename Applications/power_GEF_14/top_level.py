@@ -139,7 +139,8 @@ def main():
     print(model.history)
     model.save_history(logSavePath)
     model.plot()
-    titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)
+    lossDescr =  loss.descr if  isinstance(loss, trainer.QuantileLoss) else "MSE"
+    titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)  +"-"+lossDescr
     model.save_plots(plogSavePath, titleExt)
     # ---|
 
