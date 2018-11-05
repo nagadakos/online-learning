@@ -3,6 +3,10 @@ import matplotlib.axes  as  ax
 import numpy as np
 import os
 import sys
+from pathlib import Path
+from os.path import isdir, join, isfile
+from os import listdir
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -13,23 +17,47 @@ import regression_idx as ridx
 
 
 epochs = 0
-# Sanity Print
-# print(reps)
 
-def plot_regressor(filePath, args, title):
+def get_files_from_path(targetPath, expression):
 
-    files = [filePath]
+    # Find all folders that are note named Solution
+    d = [f for f in listdir(targetPath) if (isdir(join(targetPath, f)) and "Solution" not in f)]  
+    f = [f for f in listdir(targetPath) if (isfile(join(targetPath, f)) and "Solution" not in f)]  
+
+    # initialize a list with as many empty entries as the found folders.
+    l = [[] for i in range(len(d))]
+    # Create a dictionary to store the folders and whatever files they have
+    contents = dict(zip(d,l))
+    contents['files'] = f
+    # print(contents)
+    # Pupulate the dictionary with files that match the expression, for each folder.
+    for folder, files in contents.items():
+        stuff = sorted(Path(join(targetPath, folder)).glob(expression))
+        for s in stuff:
+            files.append(os.path.split(s)[1] )
+        # print(folder, files)
+    for files in contents['files']:
+        stuff = sorted(Path(join(targetPath, files)).glob(expression))
+    return contents
+
+def plot_regressor(filesPath, args, title):
+
+    if not isinstance(filesPath, list):
+        files = [filePath]
+    else:
+        files = filesPath
     reps = []
     for i,f in enumerate(files):
         reps.append([[] for i in range(ridx.logSize)])
 
-        # print(i)
-        # print("Size of reps list: {} {}".format(len(reps),len(reps[0])))
+        print(i)
+        print("Size of reps list: {} {}".format(len(reps),len(reps[i])))
         with open(f, 'r') as p:
             # print("i is {}".format(i))
             for j,l in enumerate(p):
                 # Ignore last character from line parser as it is just the '/n' char.
-                report = l[:-1].split(' ')
+                report = l[:-2].split(' ')
+                print(report)
                 reps[i][ridx.trainMAE].append(report[ridx.trainMAE])
                 reps[i][ridx.trainMAPE].append(report[ridx.trainMAPE])
                 reps[i][ridx.trainLoss].append(report[ridx.trainLoss])
@@ -95,8 +123,15 @@ def plot_all_in_one(reps, epochs, title):
 def main():
     title = 'Multi-Linear Regression MSE Loss vs Epoch plot'
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
-    filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
-    plot_regressor(filePath, 1, title)
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek"
+
+    f = get_files_from_path(filePath, "*log1.txt")
+    print(f)
+    files = []
+    for i in f['files']:
+        files.append(join(filePath, i)) 
+    print(files)
+    plot_regressor(files, 1, title)
     plt.savefig("../../Applications/power_GEF_14/Plots/MLR-25-epoch.png")
     plt.close()
 
