@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import os 
+from os.path import join
 
 
 # Add this files directory location, so we can include the index definitions
@@ -22,7 +23,6 @@ import plot_idx as pidx
 
 # End Of imports -----------------------------------------------------------------
 # --------------------------------------------------------------------------------
-
 
 sign = lambda x: ('+', '')[x < 0]
 # CapWords naming convention for class names
@@ -45,8 +45,8 @@ class ANNGreek(nn.Module):
         Returns:    A single value prediction of the load.
     '''
 
-    history = [[] for i in range(ridx.logSize)]
-    def __init__(self, inSize = 2, outSize = 1, loss = nn.MSELoss()): 
+    def __init__(self, inSize = 2, outSize = 1, loss = "Quantile", optim = "SGD", lr=0.1, momnt=0,
+                wDecay=0): 
         super(ANNGreek, self).__init__() 
         self.firstPass = 1
         self.linear = nn.Linear(inSize, 24)  # 10 nodes are specified in the thesis.
@@ -55,6 +55,13 @@ class ANNGreek(nn.Module):
         self.descr = "ANNGreek" 
         # The list below holds any plotted figure of the model
         self.plots = [None] * pidx.plotSize
+        self.history = [[] for i in range(ridx.logSize)]
+        self.optim = optim
+        self.lr = lr
+        self.momnt = momnt
+        self.wDecay = wDecay
+        self.saveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt),
+                                     str(self.wDecay), self.loss))
 
     def forward(self, x): 
         x = F.relu(self.linear(x)) 
@@ -89,7 +96,9 @@ class ANNGreek(nn.Module):
             # Create the Target Directory if does not exist.
             if not os.path.exists(saveFile):
                 os.mkdir(saveFile)
-            saveFile += "/log1.txt"
+            saveFile += '/'
+            sep = '-'
+            saveFile += sep.join((str(self.lr),str(self.momnt), str(self.wDecay), "log1.txt"))
 
         trainer.save_log(saveFile, self.history)
 
@@ -100,7 +109,7 @@ class ANNGreek(nn.Module):
         trainerArgs = args.copy()
         testerArgs = args.copy()
         testerArgs[1] *= 4 
-
+        
         for e in range(epochs):
            trainerArgs[0] = e 
            testerArgs[0] = e 
@@ -125,7 +134,8 @@ class ANNGreek(nn.Module):
         if logPath is not None:
             readLog = logPath
         else:
-            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" +self.descr + "/log1.txt"
+            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
+            readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), "log1.txt"))
         # Form plot title and facilate plotting
         title = self.descr + " Learning Curve"
         self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
