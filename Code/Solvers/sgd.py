@@ -53,6 +53,7 @@ class SGD(Optimizer):
         self.name = "SGD"
         self.lr = lr
         self.momnt = momentum
+        self.wDecay = weight_decay
         if  lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if momentum < 0.0:

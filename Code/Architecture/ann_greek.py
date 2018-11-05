@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import os 
+from os.path import join
 
 
 # Add this files directory location, so we can include the index definitions
@@ -44,7 +45,7 @@ class ANNGreek(nn.Module):
         Returns:    A single value prediction of the load.
     '''
 
-    def __init__(self, inSize = 2, outSize = 1, loss = nn.MSELoss(), optim = "SGD", lr=0.1, momnt=0,
+    def __init__(self, inSize = 2, outSize = 1, loss = "Quantile", optim = "SGD", lr=0.1, momnt=0,
                 wDecay=0): 
         super(ANNGreek, self).__init__() 
         self.firstPass = 1
@@ -59,6 +60,8 @@ class ANNGreek(nn.Module):
         self.lr = lr
         self.momnt = momnt
         self.wDecay = wDecay
+        self.saveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt),
+                                     str(self.wDecay), self.loss))
 
     def forward(self, x): 
         x = F.relu(self.linear(x)) 
@@ -131,7 +134,8 @@ class ANNGreek(nn.Module):
         if logPath is not None:
             readLog = logPath
         else:
-            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" +self.descr + "/log1.txt"
+            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
+            readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), "log1.txt"))
         # Form plot title and facilate plotting
         title = self.descr + " Learning Curve"
         self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
