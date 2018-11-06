@@ -134,8 +134,8 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 2          # must be at least 2 for plot with labellines to work
-    batchSize = 1000
+    epochs = 200          # must be at least 2 for plot with labellines to work
+    batchSize = 10000
 
     # Select Architecture here
     arch = "ANNGreek"
