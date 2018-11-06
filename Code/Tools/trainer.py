@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optm
 import sys
 import os 
-
+import numpy as np
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, dir_path)
@@ -26,18 +26,26 @@ class QuantileLoss(nn.Module):
             self.q = q
         else:
             self.q = [q]
-            self.loss = [] 
-        for i in range(len(self.q)):
-            self.loss.append(0)
-        print(self.loss)
+        self.descr = "QuantileLoss_" + str(len(self.q))
 
     def forward(self, x, target):
-        a = x 
+        loss = [] # place holder for each quantile loss.
         for i,q in enumerate(self.q): 
-            a += q* F.relu(target- x) + (1-q) * F.relu(x - target)
-            # self.loss[i] = a.mean() # Mean value of all elements, scalar.
-        x = a.mean()
-        return x 
+            # Each Element of the list, is the quantile loss of each quantile with each output node.
+            # So quantile 1 get multipled with output node 1, for each sample.
+            # The end results is the element at list[i] is of size: (n, 1).
+            x_col = torch.reshape(x[:,i], (len(x),1))
+            loss.append( (q* F.relu(target- x_col) + (1-q) * F.relu(x_col - target)).sum(dim=1, keepdim=True))
+
+        # Convert List quantile loss Tensors to Tensor.
+        # list is len (NumOfQuantiles) and items are(n,1). It becomes a tensor of
+        # shape (n, numOfQuantiles)
+        loss = torch.cat(loss, dim =1)
+        # Compute Mean of all Quantile loss for the whole batch. Returned loss must
+        # be scalar for autograd.
+        meanLoss = loss.mean()
+        return meanLoss, loss
+
 # End of Quantile Loss
 # ---------------------------------------------------------------------------------
 
@@ -65,40 +73,6 @@ def save_log(filePath, history):
 # End of Save Log.
 # ----------------------------------------------------------------------------------
 
-# ----------------------------------------------------------------------------------
-# Start of Train
-# This function is aimed towards training classifiers. For training regressors
-# see train_regressor instead.
-
-# def train(model, args, device, indata, optim, lossFunction = nn.MSELoss()):
-#     true = 0
-#     acc  = 0
-#     for idx, (img, label) in enumerate(indata):
-#         data, label = img.to(device), label.to(device)
-#         # forward pass calculate output of model
-#         output      = model.forward(data)
-#         pred   = output.max(dim = 1, keepdim = True)
-#         true  += label.eq(pred[1].view_as(label)).sum().item()
-#         # print(data.shape)
-#         # print(output.shape)
-#         # compute loss
-#         loss        = lossFunction(output, label)
-#         # Backpropagation part
-#         # 1. Zero out Grads
-#         optim.zero_grad()
-#         # 2. Perform the backpropagation based on loss
-#         loss.backward()
-#         # 3. Update weights
-#         optim.step()
-#
-#        # Training Progress report for sanity purposes!
-#         # if idx % 20 == 0:
-#             # print("Epoch: {}->Batch: {} / {}. Loss = {}".format(args, idx, len(indata), loss.item() ))
-#     # Log the current train loss
-#     acc = true/len(indata.dataset)
-#     model.history[indexes.trainLoss].append(loss.item())   #get only the loss value
-#     model.history[indexes.trainAcc].append(acc)
-
 # ------------------------------------------------------------------------------------------
 # Training function for MLR Regressors
 
@@ -120,22 +94,28 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     '''
     MAE   = 0
     MAPE  = 0
-
+    e = 0.001
     for idx, (data, label) in enumerate(indata):
         data, label = data.to(device), label.to(device)
         # forward pass calculate output of model
-        output = model.forward(data).view_as(label)
-        pred   = output
-        
+        output = model.forward(data)
+        # Reshape data and labels from (n*modelOutSize,) and (n,) to (n, modelOutSize) and (n,1)
+        pred   = output.view(len(label), output.shape[1])
+        label  = label.view(len(label), 1)
         # Sanity prints
         # if idx == 5:
             # # print("Prediction shape: {} label shape: {}". format(pred.shape, label.shape))
             # print("Prediction: {}, labels: {}" .format(pred, label))
 
         # compute loss
-        loss = lossFunction.forward(pred, label)
+        if isinstance(lossFunction, QuantileLoss):
+            loss, lossMatrix = lossFunction.forward(pred, label)
+        else:
+            loss = lossFunction(pred, label)
+
         MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
-        MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
+        MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label+e).sum().item()
+
         # Backpropagation part
         # 1. Zero out Grads
         optim.zero_grad()
@@ -148,12 +128,11 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
             print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(indata),
                                                                            pred.shape[0], loss.item() ))
             factor = (idx+1)*pred.shape[0]
-            print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE /factor))
-                
+            print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
 
     # Log the current train loss
     MAE  = MAE/len(indata.dataset)
-    MAPE = MAPE/len(indata.dataset)
+    MAPE = MAPE*100/len(indata.dataset)
     model.history[ridx.trainLoss].append(loss.item())   #get only the loss value
     model.history[ridx.trainMAE].append(MAE)
     model.history[ridx.trainMAPE].append(MAPE)
@@ -172,9 +151,17 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
     with torch.no_grad():
         for data, label in testLoader:
             data, label = data.to(device), label.to(device)
-            pred = model.forward(data).view_as(label)
-            # Sum all loss terms and tern then into a numpy number for late use.
-            loss = lossFunction(pred, label).item()
+            output = model.forward(data)
+            # Reshape data and labels from (n*modelOutSize,) and (n,) to (n, modelOutSize) and (n,1)
+            pred   = output.view(len(label), output.shape[1])
+            label  = label.view(len(label), 1)
+
+            if isinstance(lossFunction, QuantileLoss):
+                # Sum all loss terms and tern then into a numpy number for late use.
+                loss, lossMatrix = lossFunction(pred, label)
+                loss= loss.item()
+            else:
+                loss = lossFunction(pred, label).item()
             MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
             MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
 

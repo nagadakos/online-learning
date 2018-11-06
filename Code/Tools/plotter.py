@@ -1,8 +1,16 @@
 import matplotlib.pyplot as plt
 import matplotlib.axes  as  ax
+from matplotlib import cm
+from labellines import labelLine, labelLines
 import numpy as np
 import os
 import sys
+from pathlib import Path
+from os.path import isdir, join, isfile
+from os import listdir
+import fnmatch
+from itertools import cycle
+from random import randint
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -13,23 +21,57 @@ import regression_idx as ridx
 
 
 epochs = 0
-# Sanity Print
-# print(reps)
 
-def plot_regressor(filePath, args, title):
+def get_files_from_path(targetPath, expression):
 
-    files = [filePath]
+    # Find all folders that are not named Solution.
+    d = [f for f in listdir(targetPath) if (isdir(join(targetPath, f)) and "Solution" not in f)]  
+    # Find all file in target directory that match expression
+    f = [f for f in listdir(targetPath) if (isfile(join(targetPath, f)) and fnmatch.fnmatch(f,
+                                                                                            expression))]  
+    # initialize a list with as many empty entries as the found folders.
+    l = [[] for i in range(len(d))]
+    # Create a dictionary to store the folders and whatever files they have
+    contents = dict(zip(d,l))
+    contents['files'] = f
+
+    # Pupulate the dictionary with files that match the expression, for each folder.
+    # This will consider all subdirectories of target directory and populate them with
+    # files that match the expression.
+    for folder, files in contents.items():
+        stuff = sorted(Path(join(targetPath, folder)).glob(expression))
+        for s in stuff:
+            files.append(os.path.split(s)[1] )
+        # print(folder, files)
+    for files in contents['files']:
+        stuff = sorted(Path(join(targetPath, files)).glob(expression))
+    # print(contents)
+    return contents
+
+def get_cmap(n, name='hsv'):
+    '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+       RGB color; the keyword argument name must be a standard mpl colormap name.
+    '''
+    return plt.cm.get_cmap(name, n)
+
+def plot_regressor(filesPath, args, title):
+
+    if not isinstance(filesPath, list):
+        files = [filesPath]
+    else:
+        files = filesPath
     reps = []
     for i,f in enumerate(files):
         reps.append([[] for i in range(ridx.logSize)])
 
         # print(i)
-        # print("Size of reps list: {} {}".format(len(reps),len(reps[0])))
+        # print("Size of reps list: {} {}".format(len(reps),len(reps[i])))
         with open(f, 'r') as p:
             # print("i is {}".format(i))
             for j,l in enumerate(p):
                 # Ignore last character from line parser as it is just the '/n' char.
-                report = l[:-1].split(' ')
+                report = l[:-2].split(' ')
+                # print(report)
                 reps[i][ridx.trainMAE].append(report[ridx.trainMAE])
                 reps[i][ridx.trainMAPE].append(report[ridx.trainMAPE])
                 reps[i][ridx.trainLoss].append(report[ridx.trainLoss])
@@ -38,25 +80,40 @@ def plot_regressor(filePath, args, title):
                 reps[i][ridx.testLoss].append(report[ridx.testLoss])
 
             epochs = len(reps[0][0])
-    print("Plots epochs: {}" .format(epochs))
+    # print("Plots epochs: {}" .format(epochs))
+    fig = plt.figure(figsize=(19.2,10.8))
+    plt.title(title)
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    # Set a color mat to use for random color generation. Each name is a different
+    # gradient group of colors
+    cmaps= ['Pastel1', 'Pastel2', 'Paired', 'Accent',
+                     'Dark2', 'Set1', 'Set2', 'Set3',
+                     'tab10', 'tab20', 'tab20b', 'tab20c']
+    # Create an iterator for colors, for automated plots.
+    cycol = cycle('bgrcmk')
+    labels = []
     for i, rep in enumerate(reps):
+        # print(cmap(i))
         a = np.asarray(rep, dtype = np.float32)
         epchs = np.arange(1, epochs+1)
-        fig = plt.figure()
-        plt.title(title)
-        plt.ylabel('Loss')
-        plt.xlabel('Epoch')
-        # plt.plot(epchs, a[0], 'r', label = 'Keras_train', epchs, b[0], 'b', 'PyTorch_train')
-        plt.plot(epchs, a[ridx.trainLoss],  'r', epchs, a[ridx.testLoss], 'b')
-        # plt.plot(epchs, a[2], 'm--', epchs, b[2], 'c--')
-        labels = ['Train Loss', 'Test Loss']
-        plt.legend( labels, loc='lower right')
+        # WHen plotting multiple stuff in one command, keyword arguments go last and apply for all
+        # plots.
+        ext = os.path.split(files[i])[1].split('-') 
+        ext = ' '.join(('lr', ext[0],'m',ext[1],'wD',ext[2]))
+        # Select color for the plot
+        cSel = [randint(0, len(cmaps)-1), randint(0, len(cmaps)-1)]
+        c1 = plt.get_cmap(cmaps[cSel[0]])
+        # Solid is Train, dashed is test
+        plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle = '-', label = ext)
+        plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+'--'), label = ext)
+        plt.legend( loc='lower right')
         # plt.close()
         # plt.draw()
         # plt.pause(15)
-        return fig
-
-# def save_plots(savePath):
+    # This will insert legend inline of curves
+    # labelLines(plt.gca().get_lines(),align=False,fontsize=5)
+    return fig
 
 #************************************
 #Function: Plot Accuracy
@@ -95,9 +152,16 @@ def plot_all_in_one(reps, epochs, title):
 def main():
     title = 'Multi-Linear Regression MSE Loss vs Epoch plot'
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
-    filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
-    plot_regressor(filePath, 1, title)
-    plt.savefig("../../Applications/power_GEF_14/Plots/MLR-25-epoch.png")
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
+
+    f = get_files_from_path(filePath, "*log1.txt")
+    # print(f)
+    files = []
+    for i in f['files']:
+        files.append(join(filePath, i)) 
+    print(files)
+    plot_regressor(files, 1, title)
+    plt.savefig("../../Applications/power_GEF_14/Plots/test.png")
     plt.close()
 
   

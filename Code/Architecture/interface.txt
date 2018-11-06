@@ -1,0 +1,39 @@
+
+class MyClass(nn.module):
+
+	
+
+	Mandatory PyTorch functions for dataset class
+	---------------------------------------------------
+	def __init(args)__:
+
+	def __getitem__(self, index):
+
+	def __len()__:
+	
+	This project's mandatory functions.
+	---------------------------------------------------
+	> The functions presented in batch b, of this section,
+	are wrapper functions of general functions found in
+	the Tools folder, for universal tasks such as printing
+	---|
+
+	def create_
+		calls shape_data_function():
+	
+	def shape_data_function():
+		calls check_bound_validity():
+		
+	def load(data):
+
+	def check_bound_validity():
+	
+	Section B. Wrapper Functions
+
+	def plot():
+
+# End of Class MyClass.
+#=========================================================
+
+General Functions (Should be moved to a shared file)
+d

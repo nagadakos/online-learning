@@ -53,6 +53,7 @@ class SGD(Optimizer):
         self.name = "SGD"
         self.lr = lr
         self.momnt = momentum
+        self.wDecay = weight_decay
         if  lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if momentum < 0.0:
@@ -65,7 +66,29 @@ class SGD(Optimizer):
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
         super(SGD, self).__init__(params, defaults)
-        
+
+
+    def set_params(self, params = None, lr = None, momentum = None, dampening = None, weight_decay = None, nesterov
+                  = None):
+
+        lrIn = lr if lr is not None else self.lr 
+        momentumIn = momentum if momentum is not None else self.momnt
+        dampeningIn = dampening if dampening is not None else self.param_groups[0]['dampening']
+        WDecayIn = weight_decay if weight_decay is not None else self.param_groups[0]['weight_decay']
+        nesterovIn = nesterov if nesterov is not None else self.param_groups[0]['nesterov']
+        params = params if params is not None else self.param_groups[0]['params']
+        self.name = "SGD"
+        self.lr = lrIn
+        self.momnt = momentumIn
+        print(WDecayIn, nesterovIn, params, self.name)
+
+
+        defaults = dict(lr=lrIn, momentum=momentumIn, dampening=dampeningIn,
+                        weight_decay=WDecayIn, nesterov=nesterovIn)
+        if nesterovIn and (momentumIn <= 0 or dampeningIn != 0):
+            raise ValueError("Nesterov momentum requires a momentum and zero dampening")
+        super(SGD, self).__init__(params, defaults)
+
     def __setstate__(self, state):
         super(SGD, self).__setstate__(state)
         for group in self.param_groups:

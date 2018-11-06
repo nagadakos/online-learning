@@ -1,0 +1,57 @@
+
+
+
+
+class MyClass(Dataset):
+	''' Description This class defines the skeleton of transforming a folder containging
+		raw data csv files, to PyTorch datasets, redy to feed to Dataloaders. This class
+		also takes care of reshaping raw data to desired format of the models. It
+		also should provide a way to check data loading ranges, for their validity
+		and internally be aware of the files it can read data from.
+	
+		Usage:	To use data with this class, one must:
+				1) Define how items are return in getitem
+				2) Define create_shaped data function. A lot of this code is reusable
+				3) Provide the algorithm with which the data is to be reshaped, in
+				   shape_data_function
+				4) Change how raw data is loaded in load() function
+				5) Define bound validity. Each dataset has some quirks
+				6) Provide a proper string description of the data in get_descr (Optional) 	
+
+	'''
+	
+
+	Mandatory PyTorch functions for dataset class
+	---------------------------------------------------
+	def __init(self, args)__:
+
+	def __getitem__(self, index):
+
+	def __len(self)__:
+	
+	This project's mandatory functions.
+	---------------------------------------------------
+	> The functions presented 
+	---|
+
+	def create_shaped_data(self, contents):
+		calls shape_data_function():
+
+	def shape_data_function():
+		
+	def load(data):
+		calls check_bound_validity():
+
+	def check_bound_validity():
+
+	def get_item_size(self):
+
+	def get_descr(self):
+
+
+# End of Class MyClass.
+#=========================================================
+> General Functions (Should be moved to a shared file)
+
+
+def get_files_from_path(targetPath, expression):

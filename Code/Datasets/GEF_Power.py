@@ -7,6 +7,10 @@
 
 from __future__ import print_function, division
 import os
+from os import listdir
+from pathlib import Path
+from os.path import isdir, join
+import re
 import torch
 import pandas as pd
 import numpy as np
@@ -19,9 +23,8 @@ from sklearn.preprocessing import LabelBinarizer
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-
 class GefPower(Dataset):
-    def __init__(self, csvPath, toShape = None, transform = None, dataRange = [0, 0], trainMode =1):
+    def __init__(self, csvPath = None, task = "Task 1", toShape = None, transform = None, dataRange = [0, 0], trainMode =1):
         """ Description: This class defines the tranformation of a raw data csv file
                          to a PyTorch dataset. If required it should handle the 
                          complete reshaping and saving of the raw data to an 
@@ -40,7 +43,9 @@ class GefPower(Dataset):
             itemLabel(tensor.float): A 1D tensor containg the dependant load 
                      variable.
         """
-        offset = 35064   # labeled data line offset of original GEF file.
+        self.offset = 35064   # labeled data line offset of original GEF file.
+        defaultRawFolder = dir_path+"/../../Data/GEF/Load"
+        self.descr = "power_GEF_14"
         self.transform = transform
         self.mean = 61.32
         self.std  = 16.71 
@@ -49,61 +54,39 @@ class GefPower(Dataset):
         self.maxPower = 315.6
         self.minPower = 48.4
         self.trainMode = trainMode
-        fileToRead = csvPath
+        self.rawDataFolder = csvPath if csvPath is not None else defaultRawFolder
         self.baseDate= datetime(2005, 1, 1, 1, 00) # labelled data start date
         self.reshaped = 0
-
+        self.toShape = toShape
+        self.reshapedBaseFolder = join(dir_path,"../../Applications", self.descr, "ShapedData")
+        self.lowerBnd = abs(dataRange[0])
+        self.upperBnd = abs(dataRange[1])
+        # Dictionary of all the folders in the raw data directory, with all the files
+        # per folder, that match the given expression (2nd arg).
+        self.rawContents = get_files_from_path(self.rawDataFolder, "*.csv")
         # If raw data has to be reshaped for an architecture, it is done here.
-        if toShape is not None:
-           # Form required file
-           fileExt = ".csv"
-           if self.transform is not None:
-               fileExt = "_" + transform + ".csv"
-           relativePathBody = "/../../Applications/power_GEF_14/ShapedData/GEF14_power_reshaped_as_"
-           relativePathBody += toShape
-           reshapedPath = dir_path+ relativePathBody + fileExt
-           # Indicate that the reshaped input is required
-           self.reshaped = 1
-           # Check if required reshaped file already exists. Otherwise make it now.
-           if not os.path.isfile(reshapedPath):
-               print(" Data file with required input does not exist. Reshaping raw file now.") 
-               self.data    = pd.read_csv(fileToRead, skiprows = offset)
-               self.labels  = np.asarray(self.data.iloc[:, 2]) # third column has the load values
-               self.data_len = len(self.data.index)
-               self.shape_data(toShape, reshapedPath)
-           fileToRead = reshapedPath
-           # New reshaped file does not have the offset unlabeld lines
-           # So, we need to account for that.
-           dataRange[0] = max(dataRange[0] - offset,0)  
-           dataRange[1] = max(dataRange[1] - offset,0)             
+        # for folder, files in contents.items():
 
-        # Check for line read range validity. If UB < LB, reverse them, unless UB = 0.
-        # UB = 0, means read the whole file from LB to end.
-        if dataRange[1] < dataRange[0] :
-           if dataRange[1] != 0:
-               print("Data Range provided in invalid. Upper bound {} is smaller than Lower bound {}! Will read the file from lower bound to end instead!".format(dataRange[1], dataRange[0]))
-               temp = dataRange[0]
-               dataRange[0] = dataRange[1]
-               dataRange[1] = temp
-        self.data    = pd.read_csv(fileToRead, skiprows = dataRange[0], nrows = abs(dataRange[1]-
-                                                                             dataRange[0]))
-
-        # if raw data does not have to be reshaped, just read it, taking offset to account.
-        if toShape is None: 
-            if dataRange[0] < offset:
-                print("Labeled Data starts as line {}. Offsetting accordingly.".format(offset))
-                dataRange[0] = offset
-            self.labels  = np.asarray(self.data.iloc[:, 2]) # third column has the load values
+        if self.toShape is not None:
+            self.reshaped = 1
+            self.create_shaped_data(self.rawContents)
+            expression = self.descr + "_reshaped_as_" + self.toShape+ "_" +self.transform+".csv"
+            self.dataContents =  get_files_from_path(self.reshapedBaseFolder, expression)
+            self.activeDataFolder = self.reshapedBaseFolder
         else:
-            self.data = self.data.iloc[:,0:-1] # Last line is label, take it off our data structure
-            self.labels  = np.asarray(self.data.iloc[:, -1]) # Reshaped data has last column as
-                                                             # labels . 
+            expression = "*train.csv"
+            self.dataContents = get_files_from_path(self.rawDataFolder, expression)  
+            self.activeDataFolder = self.rawDataFolder
+        # Load the data appropriate for the task; check for bounds validity
+        self.data, self.labels = self.load_data(task)
+ 
         # Get len integer from Range object
         self.data_len = len(self.data.index)
               
-        # End of init
-        # ---------------------------------------------------------------------------------
-   
+    # End of init
+    # ---------------------------------------------------------------------------------
+
+    
     def __getitem__(self, index):
         '''Description: mandatory function implementation for dataloaders.
 
@@ -123,7 +106,7 @@ class GefPower(Dataset):
 
             # Weather data is column 3+
             itemData  = np.array(self.data.iloc[index, 3:], dtype = float)
-            itemLabel = np.array(self.labels[index])
+            label = np.array(self.labels[index], dtype = float)
             itemDate  = np.array([trend, month, year, hour])
             # All elements of 1-hot representation, which are 7, have to be inserted
             # starting from the original second position. This is what the [2:] array below
@@ -147,13 +130,16 @@ class GefPower(Dataset):
                     itemData = itemData / self.std
                 if self.transform == "normalize":      # scale to 0-1 range
                     itemData = (itemData - self.min) / (self.max - self.min)
+                    label = (label - self.minPower) / (self.maxPower - self.minPower)
 
+            # Need to reshape label as a nd array of 1,1 to feed to torch.from_numpy   
+            itemLabel = np.reshape(label, (1,1))
             itemData = np.concatenate((itemDate, itemData))
-                    # if the reshaped data file is needed.
+        # if the reshaped data file is needed.
         else:
             itemData = np.array(self.data.iloc[index,:], dtype = float)
-            itemLabel = np.array(self.data.iloc[index,-1], dtype = float)
-        # Turn numpy arrays to Tensors for pytorch usage.
+            itemLabel = np.array(self.labels.iloc[index], dtype = float)
+                    # Turn numpy arrays to Tensors for pytorch usage.
         itemData = torch.from_numpy(itemData).float()
         itemLabel = torch.from_numpy(itemLabel).float()
 
@@ -166,9 +152,9 @@ class GefPower(Dataset):
         
         return (self.data_len) # of how many examples(images?) you have
 
-    # ---------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------
     # Custom Functions below this point
-    # ---------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------
 
     def get_item_size(self):
 
@@ -183,7 +169,7 @@ class GefPower(Dataset):
     #------------------------------------------------------------------------------------------
     # Start of shape data 
 
-    def shape_data(self, architecture, savePath):
+    def shape_data_function(self, architecture, savePath):
         ''' Description: This function reshapes the read file to the required
                          input of the given architecture. If the architecture is
                          not implemented, a printout will be dmake and the dataset
@@ -319,6 +305,126 @@ class GefPower(Dataset):
     # End of compute statistics
     # ---------------------------------------------------------------------------------
 
+    def create_shaped_data(self, contents):
+        for folder, files in contents.items():
+            offset = self.offset if folder == "Task 1" else 0
+            if self.toShape is not None:
+                # Form required file
+                fileExt = ".csv"
+
+                if self.transform is not None:
+                    relativePathBody = join(self.reshapedBaseFolder, folder)
+                    if not os.path.isdir(relativePathBody):
+                        os.makedirs(relativePathBody, mode=0o777)
+
+                    relativePathBody += "/" + self.descr + "_reshaped_as_"
+                    relativePathBody += self.toShape
+
+                    fileExt = "_" + self.transform + ".csv"
+                    reshapedPath = relativePathBody + fileExt
+
+                # Indicate that the reshaped input is required
+                self.reshaped = 1
+                # Check if required reshaped file already exists. Otherwise make it now.
+                if not os.path.isfile(reshapedPath):
+                   print(" Data file with required input does not exist. Reshaping raw file now.") 
+                   fileToRead    = join(self.rawDataFolder ,folder, files[1])
+                   self.data     = pd.read_csv(fileToRead, skiprows = offset)
+                   self.labels   = np.asarray(self.data.iloc[:, 2]) # third column has the load values
+                   self.data_len = len(self.data.index)
+                   self.shape_data_function(self.toShape, reshapedPath)
+
+        # print(relativePathBody)
+    # End of create shaped data
+    # ---------------------------------------------------------------------------------
+
+    def load_data(self, task):
+
+        for folder, files in self.dataContents.items():
+            if folder == task:
+                fileToRead = join(self.activeDataFolder, folder, files[0]) 
+                break
+        print(fileToRead)
+        # Read into pandas the appropriate data file
+        data = pd.read_csv(fileToRead)
+        # Check if given read data bounds are valid. If not compensate in the function below.
+        self.lowerBnd, self.upperBnd = self.check_bound_validity(len(data.index), task)
+        print("LB: {} UP: {}".format(self.lowerBnd, self.upperBnd))
+        # Reshaped data had the label, always at the last column.
+        # Raw data has the labels at 3 column.
+        if self.toShape is not None:
+            # labels = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, -1]) # Reshaped data has last column as
+            labels = data.iloc[self.lowerBnd:self.upperBnd, -1] # Reshaped data has last column as
+            data   = data.iloc[self.lowerBnd:self.upperBnd,0:-1] # Last line is label, take it off our data structure
+        else:
+            labels  = np.asarray(data.iloc[self.lowerBnd:self.upperBnd, 2]) # third column has the load values
+            data   = data.iloc[self.lowerBnd:self.upperBnd, 3:] # Weather data starts at column 3+
+
+        print("Len of dataset: {}".format(len(data.index)))
+        return data, labels
+
+    # End of load data
+    # ---------------------------------------------------------------------------------
+
+    def check_bound_validity(self, fileSize, task):
+        
+        dataRange = [self.lowerBnd, self.upperBnd]
+        print(dataRange)
+        print(fileSize, self.offset)
+        # Check for line read range validity. If UB < LB, reverse them, unless UB = 0.
+        # UB = 0, means read the whole file from LB to end.
+        if dataRange[1] < dataRange[0] :
+           if dataRange[1] != 0:
+               print("Data Range provided in invalid. Upper bound {} is smaller than Lower bound {}! Will read the file from lower bound to end instead!".format(dataRange[1], dataRange[0]))
+               temp = dataRange[0]
+               dataRange[0] = dataRange[1]
+               dataRange[1] = temp
+           else:
+               dataRange[1] = fileSize + self.offset if task == "Task 1" else fileSize
+
+        print(dataRange)
+        # Only task 1 has file size larger than offset and actually need the offset check
+        if task == "Task 1":
+            # if raw data does not have to be reshaped, just read it, taking offset to account.
+            if self.toShape is None: 
+                if dataRange[0] < self.offset:
+                    print("Labeled Data starts as line {}. Offsetting accordingly.".format(offset))
+                    dataRange[0] = self.offset
+            else:
+                # New reshaped file does not have the offset unlabeld lines
+                # So, we need to account for that.
+                dataRange[0] = max(dataRange[0] - self.offset,0)  
+                dataRange[1] = max(dataRange[1] - self.offset,0)  
+
+        if dataRange[0] > fileSize:
+            print("Lower bound given for data loading is larger than target file. {} vs {}".format(dataRange[0], fileSize))
+            print("Setting data reading lower bound to 0")
+            dataRange[0] = 0
+        if dataRange[1] > fileSize:
+            print("Upper bound given for data loading is larger than target file. {} vs {}".format(dataRange[1], fileSize))
+            print("Setting data reading upper bound to fileSize: {}".format(fileSize))
+            dataRange[1] = fileSize
+
+        return dataRange[0], dataRange[1]
+# End of Class
+#=======================================================================
+
+def get_files_from_path(targetPath, expression):
+
+    # Find all folders that are note named Solution
+    f = [f for f in listdir(targetPath) if (isdir(join(targetPath, f)) and "Solution" not in f)]  
+    # initialize a list with as many empty entries as the found folders.
+    l = [[] for i in range(len(f))]
+    # Create a dictionary to store the folders and whatever files they have
+    contents = dict(zip(f,l))
+    # print(contents)
+    # Pupulate the dictionary with files that match the expression, for each folder.
+    for folder, files in contents.items():
+        stuff = sorted(Path(join(targetPath, folder)).glob(expression))
+        for s in stuff:
+            files.append(os.path.split(s)[1] )
+        # print(folder, files)
+    return contents
 
 #-----------------------------------------------------------------------------------------------------------------------
 #  main function definition. Used to debug.
@@ -326,17 +432,17 @@ class GefPower(Dataset):
 if __name__ == "__main__":
 
     print(" GEF Power Dataset as Main ")
-    myDataset = GefPower('../../Data/GEF/Load/Task 1/L1-train.csv', toShape = "ANNGreek", transform = "normalize",
+    myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
                          dataRange=[0, 76799])
 
-    myDataset2 = GefPower('../../Data/GEF/Load/Task 1/L1-train.csv', transform = "normalize",
+    myDataset2 = GefPower(task = "Task 1", transform = "normalize",
                          dataRange= [76800,0])
 
-    print(myDataset)
-    myDataset.get_data_descr()
+    # print(myDataset)
+    # myDataset.get_data_descr()
     print(myDataset.__getitem__(1))
-    print(myDataset.__len__())
-    print(myDataset2.__len__())
-    item, label  = myDataset2.__getitem__(3)
-    print(item)
+    # print(myDataset.__len__())
+    # print(myDataset2.__len__())
+    # item, label  = myDataset2.__getitem__(3)
+    # print(item, label)
     print("Size of an instance {}".format(myDataset.get_item_size()))

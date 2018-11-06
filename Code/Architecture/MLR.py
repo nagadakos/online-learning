@@ -16,7 +16,7 @@ tools_path = os.path.join(dir_path, "../")
 sys.path.insert(0, tools_path)
 
 from Tools import trainer, plotter
-import regression_idx as ridx
+import Tools.regression_idx as ridx
 import plot_idx as pidx
 
 
@@ -50,7 +50,7 @@ class GLMLFB(nn.Module):
     '''
 
     history = [[] for i in range(ridx.logSize)]
-    def __init__(self, arch = "GLMLF-B7S", loss = nn.MSELoss()): 
+    def __init__(self, arch = "GLMLF-B7S", outputSize = 1, loss = nn.MSELoss()): 
         super(GLMLFB, self).__init__() 
         self.firstPass = 1
         if arch == "GLMLF-C2":
@@ -61,7 +61,7 @@ class GLMLFB(nn.Module):
             print("Unrecognized General Linear Model Load Forecaster Architecture")
             print("Initialize MRL layer with default size 25")
             inSize = 25
-        self.linear = nn.Linear(inSize, 1)  # 10 nodes are specified in the thesis.
+        self.linear = nn.Linear(inSize, outputSize)  # 10 nodes are specified in the thesis.
         self.loss = loss
         self.descr = arch
         # The list below holds any plotted figure of the model
@@ -107,19 +107,18 @@ class GLMLFB(nn.Module):
 
         epochs = args[0]
         
-        trainerArgs = args
-        testerArgs = args
-        testerArgs[1] *= 4 
+        trainerArgs = args.copy()
+        testerArgs = args.copy()
 
         for e in range(epochs):
            trainerArgs[0] = e 
            testerArgs[0] = e 
-           trainer.train_regressor(self, args, device, trainLoader, optim, lossFunction)
+           trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction)
            self.test(testerArgs, device, testLoader, lossFunction)
     
     # Testing and error reports are done here
     def test(self, args, device, testLoader, lossFunction = nn.MSELoss()):
-        testArgs = args
+        testArgs = args.copy()
         trainer.test_regressor(self, args, device, testLoader, lossFunction) 
 
     def plot(self, filePath = None, logPath = None):
@@ -135,14 +134,14 @@ class GLMLFB(nn.Module):
         if logPath is not None:
             readLog = logPath
         else:
-            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/log1.txt" 
+            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/"+self.descr+"/log1.txt" 
                 # readLog = 
         # Form plot title and facilate plotting
         title = self.descr + " Learning Curve"
         self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
 
     # Save plots
-    def save_plots(self, savePath = None):
+    def save_plots(self, savePath = None, titleExt = None):
         '''Description: This function saves all plots of model.
                         If no target path is given, the default is selected.
         '''
@@ -154,7 +153,10 @@ class GLMLFB(nn.Module):
 
         for i, f in enumerate(self.plots):
             if f is not None:
-                fileExt = "/" + self.descr + "-" + str(i) + ".png"
+                if titleExt is not None:
+                    fileExt = "/" + self.descr + "-" + str(i) + "-" + titleExt + ".png"
+                else:
+                    fileExt = "/" + self.descr + "-" + str(i) + ".png"
             print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
             f.savefig(savePath + fileExt)
 
