@@ -10,6 +10,7 @@ from os.path import isdir, join, isfile
 from os import listdir
 import fnmatch
 from itertools import cycle
+from random import randint
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -84,12 +85,14 @@ def plot_regressor(filesPath, args, title):
     plt.title(title)
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
-    cmap = get_cmap(2*len(reps))
+    # Set a color mat to use for random color generation. Each name is a different
+    # gradient group of colors
+    cmaps= ['Pastel1', 'Pastel2', 'Paired', 'Accent',
+                     'Dark2', 'Set1', 'Set2', 'Set3',
+                     'tab10', 'tab20', 'tab20b', 'tab20c']
     # Create an iterator for colors, for automated plots.
     cycol = cycle('bgrcmk')
     labels = []
-    # for i, val in enumerate(cm.jet(10)):
-        # print(val)
     for i, rep in enumerate(reps):
         # print(cmap(i))
         a = np.asarray(rep, dtype = np.float32)
@@ -98,8 +101,11 @@ def plot_regressor(filesPath, args, title):
         # plots.
         ext = os.path.split(files[i])[1].split('-') 
         ext = ' '.join(('lr', ext[0],'m',ext[1],'wD',ext[2]))
+        # Select color for the plot
+        cSel = [randint(0, len(cmaps)-1), randint(0, len(cmaps)-1)]
+        c1 = plt.get_cmap(cmaps[cSel[0]])
         # Solid is Train, dashed is test
-        plt.plot(epchs, a[ridx.trainLoss],  (str(next(cycol))+'-'), label = ext)
+        plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle = '-', label = ext)
         plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+'--'), label = ext)
         plt.legend( loc='lower right')
         # plt.close()
