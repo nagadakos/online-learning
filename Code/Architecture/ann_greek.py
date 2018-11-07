@@ -100,7 +100,7 @@ class ANNGreek(nn.Module):
             saveFile = '/'.join(( self.defSavePath, 'Logs', self.descr, tarFolder))
             # Create the Target Directory if does not exist.
             if not os.path.exists(saveFile):
-                os.mkdir(saveFile)
+                os.makedirs(saveFile)
             saveFile += '/'
             sep = '-'
             if saveResults == True:
