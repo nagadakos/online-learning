@@ -259,6 +259,7 @@ def main():
     # ---|
 
     # Plot total evaluation plot
+    # This should become a function
     filePath = join(dir_path, 'Logs', arch, 'PreTrain')
     f = plotter.get_files_from_path(filePath, "*log1.txt")
     print(f)
