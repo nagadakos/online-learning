@@ -148,19 +148,19 @@ class ANNGreek(nn.Module):
     # Testing and error reports are done here
     def predict(self, args, device, testLoader, lossFunction = nn.MSELoss(), saveResults = True,
                 tarFolder = 'Predictions', fileExt = ''):
-
+        taskLabel = args[2]
         print('Prediction mode  active')
         output, loss, lossMatrix = trainer.test_regressor(self, args, device, testLoader, lossFunction = lossFunction,
                                trainMode = False)
 
         # Only save the prediction history and the results, not the training history.
         if saveResults == True:
-           print("Pred History len {}".format(len(self.predHistory)))
            self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', fileExt = fileExt, saveTrainHist = False) 
-           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+'-lossMatrix', saveTrainHist
+           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+taskLabel+'-lossMatrix', saveTrainHist
                              = False, saveResults = True, results = lossMatrix) 
-           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+'-predictions', saveTrainHist
-                             = False, saveResults = True, results = lossMatrix) 
+           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt =
+                             fileExt+taskLabel+'-predictions', saveTrainHist
+                             = False, saveResults = True, results = output) 
 
 
     def plot(self, filePath = None, logPath = None, tarFolder = 'PreTrain', fileExt = 'preTrain'):

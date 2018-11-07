@@ -11,6 +11,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, dir_path)
 
 import regression_idx as ridx
+import utils
 
 
 class QuantileLoss(nn.Module):
@@ -162,6 +163,7 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
                 loss= loss.item()
             else:
                 loss = lossFunction(pred, label).item()
+            # TODO: Properly define MAE and MAPE in Quantile Regression setting.
             MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
             MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
     
@@ -181,7 +183,7 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
         model.history[ridx.testMAPE].append(MAPE)
 
     if trainMode == False:
-        print("Predicting on {}".format(args[0]))
+        print("Predicting on {}".format(args[2]))
         print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
         print("-------")
         model.predHistory[ridx.predLoss].append(loss)   #get only the loss value

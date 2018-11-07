@@ -157,9 +157,11 @@ def plot_all_in_one(reps, epochs, title):
 def main():
     title = 'Multi-Linear Regression MSE Loss vs Epoch plot'
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
+    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/PreTrain"
 
-    f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
+    # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
+    f = get_files_from_path(filePath, "*log1.txt")
     # TODO: get these numbers automatically
     # print(f)
     files = []
@@ -167,7 +169,7 @@ def main():
         files.append(join(filePath, i)) 
     print(files)
     plot_regressor(files, 1, title)
-    plt.savefig("../../Applications/power_GEF_14/Plots/best_learning.png")
+    plt.savefig("../../Applications/power_GEF_14/Plots/best_learning2.png")
     plt.close()
 
   

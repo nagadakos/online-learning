@@ -19,7 +19,7 @@ sys.path.insert(0, tools_path)
 from  Solvers import sgd
 from Datasets import GEF_Power
 from Architecture import MLR, ann_forward, ann_greek
-from Tools import trainer,plotter
+from Tools import trainer,plotter,utils
 
 # ================================================================================================================
 # Start of Functions
@@ -40,7 +40,20 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
 # End of init_optim
 #-----------------------------------------------------------------------------------------------------
 
-def init(model = None, optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)), quantiles = [0.9], device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
+# def init_online_data(model = None, tasks = "All", device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
+
+
+    # comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
+    # filesNum = tasks if tasks is not "ALL" else [1 for i in range(2,15)]
+    # taskLoaders = []
+    # dataPath = None
+    # for i, t in enumerate(filesNum):
+        # testSet = GEF_Power.GefPower(dataPath, task ='Task ' +t, toShape = model, transform = "normalize",dataRange= testDataRange) 
+        # testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
+        # taskLoaders.append(testLoader)
+    # return taskLoaders
+
+def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)), quantiles = [0.9], device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -95,19 +108,29 @@ def init(model = None, optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0
     dataPath = None
     trainSet = GEF_Power.GefPower(dataPath, toShape = models[0].descr, transform =
                                   "normalize",dataRange= trainDataRange) 
-    testSet = GEF_Power.GefPower(dataPath, toShape = models[0].descr, transform =
+    valSet = GEF_Power.GefPower(dataPath, toShape = models[0].descr, transform =
                                   "normalize",dataRange= testDataRange) 
 
     # Tell the Loader to bring back shuffled data, use 1 or more worker threads and pin-memory
     comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
 
     trainLoader = torch.utils.data.DataLoader(trainSet, batch_size = batchSize, **comArgs)
-    testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
-    # Sanity prints
-    print(len(testLoader.dataset))
-    print(trainSet.__getitem__(0))
+    valLoader = torch.utils.data.DataLoader(valSet, batch_size = batchSize, **comArgs)
 
-    return models, optimTemplate, trainLoader, testLoader 
+    # If required return the task loaders for the online schemes.
+    filesNum = tasks if tasks == "ALL" else [1*i for i in range(2,15)]
+    taskLoaders = []
+    for i, t in enumerate(filesNum):
+        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), toShape = model, transform = "normalize",dataRange= testDataRange) 
+        testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
+        taskLoaders.append(testLoader)
+        print(testSet.tast)
+
+    # Sanity prints
+    print(len(taskLoaders[0].dataset))
+    print(testSet.__getitem__(0))
+
+    return models, optimTemplate, trainLoader, valLoader, taskLoaders
 
 # ------------------------------------------------------------------------------------------------------------------
 # Main Function 
@@ -116,7 +139,7 @@ def init(model = None, optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0
 # experiments.
 
 def main():
-    '''Description: This function is invoced then this top level is called.
+    '''DESCRiption: This function is invoced then this top level is called.
                     It take the parsed arguments as input and will train,
                     teset and save the performance report of the endeavor.
                     The resulting plots are placed in the Plots folder.
@@ -134,7 +157,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 1          # must be at least 2 for plot with labellines to work
+    epochs = 30          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
@@ -143,17 +166,23 @@ def main():
 
     # Loss Function Declaration and parameter definitions go here.
     quantiles = [0.01*i for i in range(1,100)]
+    # quantiles = [0.1,0.5,0.7, 0.9]
     loss = trainer.QuantileLoss(quantiles)
     # loss = nn.MSELoss()
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.001] #, 0.003, 0.01, 0.3, 0.5]
-    momnt = [0.1]#, 0.2, 0.3, 0.5, 0.7]
+    gamma = [0.5] #, 0.003, 0.01, 0.3, 0.5]
+    momnt = [0.7]#, 0.2, 0.3, 0.5, 0.7]
     wDecay= [0.1]#, 0.5]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))
+    # ---|
+
+    # Task loading and online learning params go here.
+    tasks = 'All' # Use this to load all Tasks 
+    # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
 
     # File, plot and log saving variables. Leaveto None, to save to default locations
@@ -169,18 +198,25 @@ def main():
     # Start of working logic.
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
-    dataLoadArgs  = dict(model = arch, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
+    # The tasks argument controls which Task folders are going to be loaded for use. Give a list
+    # containing the numbers for the task you want i.e [2, 4,5,6,7,12]. If you with to load all
+    # Simple set tasks  "All", which is also the default value.
+    dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
 
-    # Get the models, optimizer, train and test data loader objects here
+    predLabels = ['Task '+ str(i) for i in range(2, 15)] if tasks == "All" else ['Task '+ str(i) for
+                                                                                 i in tasks)]
+    # Get the models, optimizer, train, evaluation and test (Task) data loader objects here.
     # Models are initilized with the same weights. The number of models returned is
     # a function of the combinization of optimizer parameters lr*moment*weight decay.
     # Note: Do not change.
-    modelsList, optimTemplate, trainLoader, testLoader = init(**dataLoadArgs)
+    modelsList, optimTemplate, trainLoader, valLoader, testLoaders = init(**dataLoadArgs)
 
     # Model Train Invocation and other handling here
     args = []
     args.append(epochs)
     args.append(batchSize)
+    args.append(0)  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
+
     # List that holds all histories. 
     modelHistories = [modelsList[0].history for i in range(totalModels)]  
 
@@ -203,12 +239,16 @@ def main():
                 optim = init_optim(model.parameters(), optimParams)
 
                 # Invoke training an Evaluation
-                model.train(args,device, trainLoader, testLoader,optim, loss, saveHistory = True,
+                model.train(args,device, trainLoader, valLoader,optim, loss, saveHistory = True,
                             savePlot = True)
                 # ---|
 
                 # Predictions 
-                model.predict(args, device, testLoader,lossFunction = loss)
+                # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
+                for i in range(len(testLoaders)):
+                    args[2] = predLabels[i]
+                    print(args[2])
+                    model.predict(args, device, testLoaders[i],lossFunction = loss)
                 # ---|
 
                 # Report saving and printouts go here

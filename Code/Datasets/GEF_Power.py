@@ -46,6 +46,7 @@ class GefPower(Dataset):
         self.offset = 35064   # labeled data line offset of original GEF file.
         defaultRawFolder = dir_path+"/../../Data/GEF/Load"
         self.descr = "power_GEF_14"
+        self.tast = task
         self.transform = transform
         self.mean = 61.32
         self.std  = 16.71 
@@ -169,7 +170,7 @@ class GefPower(Dataset):
     #------------------------------------------------------------------------------------------
     # Start of shape data 
 
-    def shape_data_function(self, architecture, savePath):
+    def shape_data_function(self, architecture, savePath, baseIdx = 0):
         ''' Description: This function reshapes the read file to the required
                          input of the given architecture. If the architecture is
                          not implemented, a printout will be dmake and the dataset
@@ -179,7 +180,7 @@ class GefPower(Dataset):
             Returns:    In place.
         '''
         # trend = np.fromfunction(map(lambda x: x*1, range(self.data_len)), dtype = int)
-        trend = np.arange(0, self.data_len, dtype=np.intc)
+        trend = np.arange(baseIdx, self.data_len, dtype=np.intc)
         date  = list(map(lambda x: self.baseDate + timedelta(hours=np.asscalar(x)), trend))
         weekday = list(map(lambda x: x.weekday(), date))
         month = list(map(lambda x: x.month, date))
@@ -197,6 +198,15 @@ class GefPower(Dataset):
                                                   # pandas slice is [lower:upper) 
         temperatures = np.array(self.data.iloc[:, 1:], dtype = float)
         loads = np.array(self.data.iloc[:,0], dtype = float)
+        # Re establish min and max if dataset brings new values.
+        tmpMax = loads.max()
+        tmpMin = loads.min()
+        selfemaxMower = self.maxPower if tmpMax < self.maxPower else tmpMax
+        self.minPower = self.minPower if tmpMin < self.maxPower else tmpMin
+        tmpMax = temperatures.max()
+        tmpMin =temperatures.min()
+        self.max = self.max if tmpMax < self.max else tmpMax
+        self.min = self.min if tmpMin < self.min else tmpMin
 
         if architecture == "ANNGreek":
 
@@ -218,8 +228,8 @@ class GefPower(Dataset):
                     reshapedData[:, 0:47] /= (self.maxPower - self.minPower)
                     reshapedData[:,55:]   -= self.min
                     reshapedData[:,55:]   /= (self.max - self.min)
-                    self.labels -= self.minPower
-                    self.labels /= (self.maxPower - self.minPower)
+                    # self.labels -= self.minPower
+                    # self.labels /= (self.maxPower - self.minPower)
             # Append the labels
             self.labels = self.labels[48:] # first 48 lines are used as data in this architecture
             self.labels = np.reshape(self.labels, (self.labels.shape[0],1))
@@ -306,6 +316,7 @@ class GefPower(Dataset):
     # ---------------------------------------------------------------------------------
 
     def create_shaped_data(self, contents):
+        baseIdx = 0
         for folder, files in contents.items():
             offset = self.offset if folder == "Task 1" else 0
             if self.toShape is not None:
@@ -332,7 +343,8 @@ class GefPower(Dataset):
                    self.data     = pd.read_csv(fileToRead, skiprows = offset)
                    self.labels   = np.asarray(self.data.iloc[:, 2]) # third column has the load values
                    self.data_len = len(self.data.index)
-                   self.shape_data_function(self.toShape, reshapedPath)
+                   self.shape_data_function(self.toShape, reshapedPath, baseIdx = baseIdx)
+                   baseIdx      += len(self.data.index)
 
         # print(relativePathBody)
     # End of create shaped data
