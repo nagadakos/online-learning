@@ -134,7 +134,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 200          # must be at least 2 for plot with labellines to work
+    epochs = 1          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
@@ -148,9 +148,9 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.001, 0.003, 0.01, 0.3, 0.5]
-    momnt = [0.1, 0.2, 0.3, 0.5, 0.7]
-    wDecay= [0.1, 0.5]
+    gamma = [0.001] #, 0.003, 0.01, 0.3, 0.5]
+    momnt = [0.1]#, 0.2, 0.3, 0.5, 0.7]
+    wDecay= [0.1]#, 0.5]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))
@@ -201,29 +201,25 @@ def main():
                 optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
                                                                    wDecay=[wDecay[w]]))
                 optim = init_optim(model.parameters(), optimParams)
+
                 # Invoke training an Evaluation
-                model.train(args,device, trainLoader, testLoader,optim, loss)
+                model.train(args,device, trainLoader, testLoader,optim, loss, saveHistory = True,
+                            savePlot = True)
+                # ---|
+
+                # Predictions 
+                model.predict(args, device, testLoader,lossFunction = loss)
                 # ---|
 
                 # Report saving and printouts go here
                 # print("Training history:")
                 # print(model.history)
-                model.save_history(logSavePath)
                 modelHistories[idx] = model.history
-                # plotArgs = []
-                model.plot()
-                lossDescr =  loss.descr if  isinstance(loss, trainer.QuantileLoss) else "MSE"
-                # titleExt = optim.name + "-lr-" +  str(optim.lr) + "-momnt-" + str(optim.momnt)  +"-"+lossDescr
-                titleExt = '-'.join((optim.name,"lr", str(optim.lr),"momnt", str(optim.momnt),
-                                     str(optim.wDecay), lossDescr))
-
-                print("Saving model {}{}-->id: {}".format(arch, titleExt, hex(id(model))))
-                model.save_plots(plogSavePath, titleExt)
                 idx += 1
     # ---|
 
     # Plot total evaluation plot
-    filePath = dir_path + '/Logs/'+ arch
+    filePath = join(dir_path, 'Logs', arch, 'PreTrain')
     f = plotter.get_files_from_path(filePath, "*log1.txt")
     print(f)
     files = []

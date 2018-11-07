@@ -64,7 +64,7 @@ def save_log(filePath, history):
     with open(filePath, 'w') as f:
         for i in range(len(history[0])): 
             for j in range(len(history)):
-                if i < len(history[j]):
+                if j < len(history):
                     f.write("{:.4f} ".format(history[j][i]))
                 else:
                     f.write("-1")
@@ -139,7 +139,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
 #--------------------------------------------------------------------------------------
 # Start of Train Regressor.
 
-def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss()):
+def test_regressor(model, args, device, testLoader, trainMode= False, lossFunction = nn.MSELoss()):
 
     MAE  = 0 
     MAPE = 0
@@ -164,19 +164,32 @@ def test_regressor(model, args, device, testLoader, lossFunction = nn.MSELoss())
                 loss = lossFunction(pred, label).item()
             MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
             MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
-
-    # Log the current train loss
+    
+        # Log the current train loss
     MAE  = MAE/ testSize
     MAPE = MAPE/testSize  
     loss = loss 
-    model.history[ridx.testLoss].append(loss)   #get only the loss value
-    model.history[ridx.testMAE].append(MAE)
-    model.history[ridx.testMAPE].append(MAPE)
+    
 
     # Print Regressor's evaluation report!
-    print("--Epoch {}  Testing --".format(args[0]))
-    print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
-    print("-------")
+    if trainMode == True:
+        print("--Epoch {}  Testing --".format(args[0]))
+        print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
+        print("-------")
+        model.history[ridx.testLoss].append(loss)   #get only the loss value
+        model.history[ridx.testMAE].append(MAE)
+        model.history[ridx.testMAPE].append(MAPE)
+
+    if trainMode == False:
+        print("Predicting on {}".format(args[0]))
+        print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
+        print("-------")
+        model.predHistory[ridx.predLoss].append(loss)   #get only the loss value
+        model.predHistory[ridx.predMAE].append(MAE)
+        model.predHistory[ridx.predMAPE].append(MAPE)
+
+        return pred, loss, lossMatrix
+
 # End of train Regressor 
 # ---------------------------------------------------------------------------------------_
 

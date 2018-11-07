@@ -16,7 +16,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 tools_path = os.path.join(dir_path, "../")
 sys.path.insert(0, tools_path)
 
-from Tools import trainer, plotter
+from Tools import trainer, plotter, utils
 import Tools.regression_idx as ridx
 import plot_idx as pidx
 
@@ -46,7 +46,7 @@ class ANNGreek(nn.Module):
     '''
 
     def __init__(self, inSize = 2, outSize = 1, loss = "Quantile", optim = "SGD", lr=0.1, momnt=0,
-                wDecay=0): 
+            wDecay=0, targetApp = "power_GEF_14"): 
         super(ANNGreek, self).__init__() 
         self.firstPass = 1
         self.linear = nn.Linear(inSize, 24)  # 10 nodes are specified in the thesis.
@@ -56,14 +56,18 @@ class ANNGreek(nn.Module):
         # The list below holds any plotted figure of the model
         self.plots = [None] * pidx.plotSize
         self.history = [[] for i in range(ridx.logSize)]
+        self.predHistory = [[] for i in range(ridx.predLogSize)]
         self.optim = optim
         self.lr = lr
         self.momnt = momnt
         self.wDecay = wDecay
-        self.saveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt),
-                                     str(self.wDecay), self.loss))
-
+        self.targetApp = targetApp 
+        self.defSavePath = '/'.join((dir_path, '../../Applications', self.targetApp))
+        self.defPlotSaveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt), str(self.wDecay), self.loss))    
+        
+        
     def forward(self, x): 
+
         x = F.relu(self.linear(x)) 
         x = F.relu(self.linear2(x)) 
         return x 
@@ -87,22 +91,39 @@ class ANNGreek(nn.Module):
          
         return x
 
-    def save_history(self, filePath = None):
+    def save_history(self, filePath = None, tarFolder = 'tempLogs', fileExt = '', savePredHist =
+                    False, saveTrainHist = True, saveResults = False, results = None):
 
         if filePath is not None:
             saveFile = filePath
         else:
-            saveFile = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr
+            saveFile = '/'.join(( self.defSavePath, 'Logs', self.descr, tarFolder))
             # Create the Target Directory if does not exist.
             if not os.path.exists(saveFile):
                 os.mkdir(saveFile)
             saveFile += '/'
             sep = '-'
-            saveFile += sep.join((str(self.lr),str(self.momnt), str(self.wDecay), "log1.txt"))
+            if saveResults == True:
+                saveResFile = saveFile + sep.join((str(self.lr),str(self.momnt), str(self.wDecay),
+                                                fileExt, ".txt"))
+            saveFile += sep.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
 
-        trainer.save_log(saveFile, self.history)
+        # Save training history or predHistory as required.
+        if savePredHist == True or  saveTrainHist == True:
+            history = self.history if saveTrainHist == True else self.predHistory
+            trainer.save_log(saveFile, history)
+        # Save Results if required
+        if saveResults == True:
+            if results is not None:
+                try:
+                    utils.save_tensor(results, filePath = saveResFile)
+                except (AttributeError, TypeError):
+                    raise AssertionError('Input Results variable should be Tensor.')
+            else:
+                print("No Results Tensor to save is given.")
 
-    def train(self, args, device, trainLoader, testLoader, optim, lossFunction = nn.MSELoss()):
+    def train(self, args, device, trainLoader, testLoader, optim, lossFunction =
+              nn.MSELoss(),saveHistory = False, savePlot = False):
 
         epochs = args[0]
         
@@ -114,14 +135,35 @@ class ANNGreek(nn.Module):
            trainerArgs[0] = e 
            testerArgs[0] = e 
            trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction)
-           self.test(testerArgs, device, testLoader, lossFunction)
+           trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
+        # If saving history and plots is required.
+        if saveHistory == True:
+            self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain")
+            print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
+
+        if savePlot == True:
+            self.plot()
+            self.save_plots()
     
     # Testing and error reports are done here
-    def test(self, args, device, testLoader, lossFunction = nn.MSELoss()):
-        testArgs = args
-        trainer.test_regressor(self, args, device, testLoader, lossFunction) 
+    def predict(self, args, device, testLoader, lossFunction = nn.MSELoss(), saveResults = True,
+                tarFolder = 'Predictions', fileExt = ''):
 
-    def plot(self, filePath = None, logPath = None):
+        print('Prediction mode  active')
+        output, loss, lossMatrix = trainer.test_regressor(self, args, device, testLoader, lossFunction = lossFunction,
+                               trainMode = False)
+
+        # Only save the prediction history and the results, not the training history.
+        if saveResults == True:
+           print("Pred History len {}".format(len(self.predHistory)))
+           self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', fileExt = fileExt, saveTrainHist = False) 
+           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+'-lossMatrix', saveTrainHist
+                             = False, saveResults = True, results = lossMatrix) 
+           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+'-predictions', saveTrainHist
+                             = False, saveResults = True, results = lossMatrix) 
+
+
+    def plot(self, filePath = None, logPath = None, tarFolder = 'PreTrain', fileExt = 'preTrain'):
         ''' Description: This function is a wrapper for the appropriate plot function
                          Found in the Tools package. It handles any architecture spec
                          cific details, that the general plot function does not, such
@@ -134,19 +176,23 @@ class ANNGreek(nn.Module):
         if logPath is not None:
             readLog = logPath
         else:
-            readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
-            readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), "log1.txt"))
+            readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, tarFolder+'/'))
+            # readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
+            readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
         # Form plot title and facilate plotting
         title = self.descr + " Learning Curve"
         self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
 
     # Save plots
-    def save_plots(self, savePath = None, titleExt = None):
+    def save_plots(self, savePath = None, titleExt = None, tarFolder = 'PreTrain'):
         '''Description: This function saves all plots of model.
                         If no target path is given, the default is selected.
+                        The default is the PreTrain folder of target architecture
+                        and application.
         '''
         if savePath is None:
-            savePath = dir_path + "/../../Applications/power_GEF_14/Plots/" + self.descr
+            savePath = '/'.join(( self.defSavePath, 'Plots', self.descr, tarFolder))
+            # savePath = dir_path + "/../../Applications/power_GEF_14/Plots/" + self.descr
             # Create the Target Directory if does not exist.
             if not os.path.exists(savePath):
                 os.mkdir(savePath)
@@ -156,19 +202,19 @@ class ANNGreek(nn.Module):
                 if titleExt is not None:
                     fileExt = "/" + self.descr + "-" + str(i) + "-" + titleExt + ".png"
                 else:
-                    fileExt = "/" + self.descr + "-" + str(i) + ".png"
+                    fileExt = "/" + self.descr + "-" + str(i) + self.defPlotSaveTitle + ".png"
             print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
             f.savefig(savePath + fileExt)
 
     def report(self):
 
         print("Current stats of ANNSLF:")
-        print("MAE:           {}" .format(self.history[ridx.trainMAE]))
-        print("MAPE:          {}" .format(self.history[ridx.trainMAPE]))
-        print("Training Loss: {}" .format(self.history[ridx.trainLoss]))
-        print("Test MAE:      {}" .format(self.history[ridx.testMAE]))
-        print("Test MAPE:     {}" .format(self.history[ridx.testMAE]))
-        print("Test Loss:     {}" .format(self.history[ridx.testLoss]))
+        print("MAE:           {}" .format(self.history[ridx.trainMAE][-1]))
+        print("MAPE:          {}" .format(self.history[ridx.trainMAPE][-1]))
+        print("Training Loss: {}" .format(self.history[ridx.trainLoss][-1]))
+        print("Test MAE:      {}" .format(self.history[ridx.testMAE][-1]))
+        print("Test MAPE:     {}" .format(self.history[ridx.testMAE][-1]))
+        print("Test Loss:     {}" .format(self.history[ridx.testLoss][-1]))
 
 
 
