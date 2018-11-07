@@ -1,7 +1,4 @@
 import matplotlib.pyplot as plt
-import matplotlib.axes  as  ax
-from matplotlib import cm
-from labellines import labelLine, labelLines
 import numpy as np
 import os
 import sys
@@ -93,6 +90,8 @@ def plot_regressor(filesPath, args, title):
     # Create an iterator for colors, for automated plots.
     cycol = cycle('bgrcmk')
     labels = []
+    ext_list = []
+    test_loss_list = []
     for i, rep in enumerate(reps):
         # print(cmap(i))
         a = np.asarray(rep, dtype = np.float32)
@@ -108,6 +107,12 @@ def plot_regressor(filesPath, args, title):
         plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle = '-', label = ext)
         plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+'--'), label = ext)
         plt.legend( loc='lower right')
+        ext_list.append(ext)
+        test_loss_list.append(a[ridx.testLoss][-1])
+
+    best_index = np.argmin(np.array(test_loss_list))
+    print("Best test loss is:", str(test_loss_list[best_index]))
+    print("Best parameters are:", ext_list[best_index])
         # plt.close()
         # plt.draw()
         # plt.pause(15)
@@ -154,14 +159,15 @@ def main():
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
     filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
 
-    f = get_files_from_path(filePath, "*log1.txt")
+    f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
+    # TODO: get these numbers automatically
     # print(f)
     files = []
     for i in f['files']:
         files.append(join(filePath, i)) 
     print(files)
     plot_regressor(files, 1, title)
-    plt.savefig("../../Applications/power_GEF_14/Plots/test.png")
+    plt.savefig("../../Applications/power_GEF_14/Plots/best_learning.png")
     plt.close()
 
   
