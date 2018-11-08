@@ -45,9 +45,6 @@ class QuantileLoss(nn.Module):
 # End of Quantile Loss
 # ---------------------------------------------------------------------------------
 
-
-
-
 def save_tensor(tensor, delimeter = ' ', filePath = None):
     ''' Description: This function saves a tensor to a txt file. It first copies 
                      it to host memory, turn it into a numpy array and dump it 
@@ -65,4 +62,10 @@ def save_tensor(tensor, delimeter = ' ', filePath = None):
     a = a.numpy()
     np.savetxt(filePath, a,  fmt="%.4f", delimiter=delimeter)
 
+def save_model_dict(model, filePath = None):
 
+    torch.save(model.state_dict(), filePath)
+
+def load_model_dict(model, filePath = None):
+
+    model.load_state_dict(torch.load(filePath))

@@ -157,7 +157,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 1          # must be at least 2 for plot with labellines to work
+    epochs = 30          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
@@ -237,10 +237,11 @@ def main():
                 optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
                                                                    wDecay=[wDecay[w]]))
                 optim = init_optim(model.parameters(), optimParams)
-
+                model
                 # Invoke training an Evaluation
                 model.train(args,device, trainLoader, valLoader,optim, loss, saveHistory = True,
                             savePlot = True)
+                model.save(titleExt= '-trainedFor-'+str(epochs))
                 # ---|
 
                 # Predictions 

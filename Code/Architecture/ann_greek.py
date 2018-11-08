@@ -141,6 +141,8 @@ class ANNGreek(nn.Module):
             self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain")
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
 
+        # If no args for tarFolder are given plots go to the preTrain folder.
+        # As: architect-0-optimName-lr-x-momnt-y-wD-z-LossName.png 
         if savePlot == True:
             self.plot()
             self.save_plots()
@@ -195,16 +197,45 @@ class ANNGreek(nn.Module):
             # savePath = dir_path + "/../../Applications/power_GEF_14/Plots/" + self.descr
             # Create the Target Directory if does not exist.
             if not os.path.exists(savePath):
-                os.mkdir(savePath)
+                os.makedirs(savePath)
 
         for i, f in enumerate(self.plots):
             if f is not None:
                 if titleExt is not None:
                     fileExt = "/" + self.descr + "-" + str(i) + "-" + titleExt + ".png"
                 else:
-                    fileExt = "/" + self.descr + "-" + str(i) + self.defPlotSaveTitle + ".png"
+                    fileExt = "/" + self.descr + "-" + str(i) + '-' + self.defPlotSaveTitle + ".png"
             print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
             f.savefig(savePath + fileExt)
+
+    def save(self, savePath = None, titleExt = '', tarFolder = ''):
+
+        if savePath is None:
+
+            savePath = '/'.join(( self.defSavePath, 'Models', self.descr, tarFolder))
+            # Create the Target Directory if does not exist.
+            if not os.path.exists(savePath):
+                os.makedirs(savePath)
+            fileExt = "/" + self.descr + "-" + self.defPlotSaveTitle + titleExt
+        print("Saving model: {}{} at {}".format(self.descr, hex(id(self)), savePath + fileExt ))
+
+        utils.save_model_dict(self, savePath+fileExt)
+
+    def load(self, loadPath = None, titleExt = '', tarFolder = ''):
+
+        if loadPath is None:
+            loadPath = '/'.join(( self.defSavePath, 'Models', self.descr))
+            fileExt = "/" + self.descr + "-" + self.defPlotSaveTitle + titleExt
+            # Create the Target Directory if does not exist.
+        if not os.path.exists(loadPath):
+            print("Given path or model does not exists. Will try to load from defaualt location.")
+        else:
+            print("Loading saved model: {} to model {}@{}".format(loadPath, self.descr, hex(id(self))))
+
+        utils.load_model_dict(self, loadPath)
+
+
+
 
     def report(self):
 
