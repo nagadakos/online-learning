@@ -140,9 +140,6 @@ class ANNGreek(nn.Module):
         # If saving history and plots is required.
         if saveHistory == True:
             self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain")
-            self.save_history(tarFolder = 'PredHistoryLogs', fileExt = 'preTrain',
-                             savePredHist = True, saveTrainHist = False) 
-
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
 
         # If no args for tarFolder are given plots go to the preTrain folder.
