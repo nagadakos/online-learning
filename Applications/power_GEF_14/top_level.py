@@ -118,7 +118,7 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     valLoader = torch.utils.data.DataLoader(valSet, batch_size = batchSize, **comArgs)
 
     # If required return the task loaders for the online schemes.
-    filesNum = tasks if tasks == "ALL" else [1*i for i in range(2,15)]
+    filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
     taskLoaders = []
     for i, t in enumerate(filesNum):
         testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), toShape = model, transform = "normalize",dataRange= testDataRange) 
@@ -157,7 +157,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 30          # must be at least 2 for plot with labellines to work
+    epochs = 2          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
@@ -203,7 +203,8 @@ def main():
     # Simple set tasks  "All", which is also the default value.
     dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
 
-    predLabels = ['Task '+ str(i) for i in range(2, 15)] if tasks == "All" else ['Task '+ str(i) for
+    # remember that range(a,b) is actually [a,b) in python.
+    predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for
                                                                                  i in tasks]
     # Get the models, optimizer, train, evaluation and test (Task) data loader objects here.
     # Models are initilized with the same weights. The number of models returned is
@@ -215,7 +216,7 @@ def main():
     args = []
     args.append(epochs)
     args.append(batchSize)
-    args.append(0)  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
+    args.append('Task 1')  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
 
     # List that holds all histories. 
     modelHistories = [modelsList[0].history for i in range(totalModels)]  
@@ -246,10 +247,10 @@ def main():
 
                 # Predictions 
                 # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
-                for i in range(len(testLoaders)):
+                for i, loader in enumerate(testLoaders):
                     args[2] = predLabels[i]
                     print(args[2])
-                    model.predict(args, device, testLoaders[i],lossFunction = loss)
+                    model.predict(args, device, loader,lossFunction = loss)
                 # ---|
 
                 # Report saving and printouts go here
@@ -272,7 +273,6 @@ def main():
     plotter.plot_regressor(files, 1, title)
     plt.savefig(dir_path + '/Plots/' + arch +'/eval-plot-'+str(randint(0,20))+'.png')
     plt.close()
-
 #  End of main
 #  -------------------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------

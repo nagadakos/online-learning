@@ -69,3 +69,19 @@ def save_model_dict(model, filePath = None):
 def load_model_dict(model, filePath = None):
 
     model.load_state_dict(torch.load(filePath))
+
+
+def main():
+    # add this so we can import the trainer and tester modules
+    archPath = os.path.join(dir_path, "../")
+    sys.path.insert(0, archPath)
+    from Architecture import ann_greek
+
+    model = ann_greek.ANNGreek(59, 99, "SGD", lr=0.5,momnt=0.7, wDecay=0.1).to('cuda:0')
+    filePath ='../../Applications/power_GEF_14/Models/ANNGreek/ANNGreek-ANNGreek-SGD-lr-0.5-momnt-0.7-0.1-SGD-trainedFor-2' 
+    load_model_dict(model, filePath)
+    print(model)
+    # parameters() need to be put in a list to be printed
+    print(list(model.parameters()))
+if __name__ == '__main__':
+    main()

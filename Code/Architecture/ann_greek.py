@@ -109,9 +109,10 @@ class ANNGreek(nn.Module):
             saveFile += sep.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
 
         # Save training history or predHistory as required.
-        if savePredHist == True or  saveTrainHist == True:
-            history = self.history if saveTrainHist == True else self.predHistory
-            trainer.save_log(saveFile, history)
+        if saveTrainHist == True:
+            trainer.save_log(saveFile, self.history)
+        if savePredHist == True :
+            trainer.save_log(saveFile, self.predHistory)
         # Save Results if required
         if saveResults == True:
             if results is not None:
@@ -139,6 +140,9 @@ class ANNGreek(nn.Module):
         # If saving history and plots is required.
         if saveHistory == True:
             self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain")
+            self.save_history(tarFolder = 'PredHistoryLogs', fileExt = 'preTrain',
+                             savePredHist = True, saveTrainHist = False) 
+
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
 
         # If no args for tarFolder are given plots go to the preTrain folder.
@@ -157,7 +161,8 @@ class ANNGreek(nn.Module):
 
         # Only save the prediction history and the results, not the training history.
         if saveResults == True:
-           self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', fileExt = fileExt, saveTrainHist = False) 
+           self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', fileExt = fileExt,
+                             savePredHist = True, saveTrainHist = False) 
            self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+taskLabel+'-lossMatrix', saveTrainHist
                              = False, saveResults = True, results = lossMatrix) 
            self.save_history(tarFolder = tarFolder+'/PredResults', fileExt =
@@ -205,7 +210,7 @@ class ANNGreek(nn.Module):
                     fileExt = "/" + self.descr + "-" + str(i) + "-" + titleExt + ".png"
                 else:
                     fileExt = "/" + self.descr + "-" + str(i) + '-' + self.defPlotSaveTitle + ".png"
-            print("Saving figure: {} at {}".format(self.descr, savePath + fileExt ))
+            print("*****\nSaving figure: {} at {}****\n".format(self.descr, savePath + fileExt ))
             f.savefig(savePath + fileExt)
 
     def save(self, savePath = None, titleExt = '', tarFolder = ''):
@@ -217,7 +222,7 @@ class ANNGreek(nn.Module):
             if not os.path.exists(savePath):
                 os.makedirs(savePath)
             fileExt = "/" + self.descr + "-" + self.defPlotSaveTitle + titleExt
-        print("Saving model: {}{} at {}".format(self.descr, hex(id(self)), savePath + fileExt ))
+            print("****\nSaving model: {}-->id: {} at {}\n****".format(self.descr, hex(id(self)), savePath + fileExt ))
 
         utils.save_model_dict(self, savePath+fileExt)
 
