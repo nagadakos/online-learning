@@ -48,24 +48,45 @@ class ANNGreek(nn.Module):
     def __init__(self, inSize = 2, outSize = 1, loss = "Quantile", optim = "SGD", lr=0.1, momnt=0,
             wDecay=0, targetApp = "power_GEF_14"): 
         super(ANNGreek, self).__init__() 
-        self.firstPass = 1
+
+        # ===============================================================================
+        # SECTION A
+        # **********
+        # NOTE: Change this appropriately for new Architectures! 
+        #   
+        # *******************************************************
+        # Ceclare Name here. Used for saving and annotation.
+        self.descr = "ANNGreek" 
+        # ---|
+
+        # Declare the layers here
         self.linear = nn.Linear(inSize, 24)  # 10 nodes are specified in the thesis.
         self.linear2 = nn.Linear(24, outSize)  # 10 nodes are specified in the thesis.
-        self.loss = loss
-        self.descr = "ANNGreek" 
+        # ---|
+
+        # *******************************************************
+        # Souldn't alter beneaththis point for testing!!
+        # ===============================================================================
+
+        self.firstPass = 1
         # The list below holds any plotted figure of the model
         self.plots = [None] * pidx.plotSize
         self.history = [[] for i in range(ridx.logSize)]
         self.predHistory = [[] for i in range(ridx.predLogSize)]
+        # parameters here hold info for optim used to train the model. Used for annotation.
+        self.loss = loss
         self.optim = optim
         self.lr = lr
         self.momnt = momnt
         self.wDecay = wDecay
+        # ---|
+        # Default File Saving parameter setting.
         self.targetApp = targetApp 
         self.defSavePath = '/'.join((dir_path, '../../Applications', self.targetApp))
         self.defPlotSaveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt), str(self.wDecay), self.loss))    
-        
-        
+        # End of init
+        # ---------------------------------------------------------------------------------
+
     def forward(self, x): 
 
         x = F.relu(self.linear(x)) 
@@ -122,6 +143,7 @@ class ANNGreek(nn.Module):
                     raise AssertionError('Input Results variable should be Tensor.')
             else:
                 print("No Results Tensor to save is given.")
+        return saveFile
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction =
               nn.MSELoss(),saveHistory = False, savePlot = False):
@@ -138,14 +160,15 @@ class ANNGreek(nn.Module):
            trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction = lossFunction)
            trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
         # If saving history and plots is required.
+        fileExt = "preTrain-for-"+str(epochs)+'-epchs'
         if saveHistory == True:
-            self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain-for-"+str(epochs)+'-epchs')
+            self.save_history(tarFolder = 'PreTrain', fileExt = fileExt)
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
 
         # If no args for tarFolder are given plots go to the preTrain folder.
         # As: architect-0-optimName-lr-x-momnt-y-wD-z-LossName.png 
         if savePlot == True:
-            self.plot()
+            self.plot(fileExt = fileExt)
             self.save_plots()
     
     # Testing and error reports are done here

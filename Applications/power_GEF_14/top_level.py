@@ -157,7 +157,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 30          # must be at least 2 for plot with labellines to work
+    epochs = 1          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
