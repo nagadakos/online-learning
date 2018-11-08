@@ -130,11 +130,11 @@ class ANNGreek(nn.Module):
         trainerArgs = args.copy()
         testerArgs = args.copy()
         testerArgs[1] *= 4 
-        
+
         for e in range(epochs):
            trainerArgs[0] = e 
            testerArgs[0] = e 
-           trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction)
+           trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction = lossFunction)
            trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
         # If saving history and plots is required.
         if saveHistory == True:

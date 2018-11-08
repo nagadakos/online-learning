@@ -157,7 +157,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 30          # must be at least 2 for plot with labellines to work
+    epochs = 1          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
@@ -167,7 +167,7 @@ def main():
     # Loss Function Declaration and parameter definitions go here.
     quantiles = [0.01*i for i in range(1,100)]
     # quantiles = [0.1,0.5,0.7, 0.9]
-    loss = trainer.QuantileLoss(quantiles)
+    loss = utils.QuantileLoss(quantiles)
     # loss = nn.MSELoss()
     # ---|
 
@@ -204,7 +204,7 @@ def main():
     dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
 
     predLabels = ['Task '+ str(i) for i in range(2, 15)] if tasks == "All" else ['Task '+ str(i) for
-                                                                                 i in tasks)]
+                                                                                 i in tasks]
     # Get the models, optimizer, train, evaluation and test (Task) data loader objects here.
     # Models are initilized with the same weights. The number of models returned is
     # a function of the combinization of optimizer parameters lr*moment*weight decay.

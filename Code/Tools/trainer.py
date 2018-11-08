@@ -11,41 +11,41 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, dir_path)
 
 import regression_idx as ridx
-import utils
+from Tools.utils import QuantileLoss
 
 
-class QuantileLoss(nn.Module):
-    '''
-        Description: This module models Quantile loss. it is implmented as a nn module
-                     So as to enable backproagation to compute gradients efficiently.
+# class QuantileLoss(nn.Module):
+    # '''
+        # Description: This module models Quantile loss. it is implmented as a nn module
+                     # So as to enable backproagation to compute gradients efficiently.
 
-        Returns:    x (loss): Averaged quantile loss over all input elements.
-    '''
-    def __init__(self,q):
-        super(QuantileLoss, self).__init__()
-        if isinstance(q, list):
-            self.q = q
-        else:
-            self.q = [q]
-        self.descr = "QuantileLoss_" + str(len(self.q))
+        # Returns:    x (loss): Averaged quantile loss over all input elements.
+    # '''
+    # def __init__(self,q):
+        # super(QuantileLoss, self).__init__()
+        # if isinstance(q, list):
+            # self.q = q
+        # else:
+            # self.q = [q]
+        # self.descr = "QuantileLoss_" + str(len(self.q))
 
-    def forward(self, x, target):
-        loss = [] # place holder for each quantile loss.
-        for i,q in enumerate(self.q): 
-            # Each Element of the list, is the quantile loss of each quantile with each output node.
-            # So quantile 1 get multipled with output node 1, for each sample.
-            # The end results is the element at list[i] is of size: (n, 1).
-            x_col = torch.reshape(x[:,i], (len(x),1))
-            loss.append( (q* F.relu(target- x_col) + (1-q) * F.relu(x_col - target)).sum(dim=1, keepdim=True))
+    # def forward(self, x, target):
+        # loss = [] # place holder for each quantile loss.
+        # for i,q in enumerate(self.q): 
+            # # Each Element of the list, is the quantile loss of each quantile with each output node.
+            # # So quantile 1 get multipled with output node 1, for each sample.
+            # # The end results is the element at list[i] is of size: (n, 1).
+            # x_col = torch.reshape(x[:,i], (len(x),1))
+            # loss.append( (q* F.relu(target- x_col) + (1-q) * F.relu(x_col - target)).sum(dim=1, keepdim=True))
 
-        # Convert List quantile loss Tensors to Tensor.
-        # list is len (NumOfQuantiles) and items are(n,1). It becomes a tensor of
-        # shape (n, numOfQuantiles)
-        loss = torch.cat(loss, dim =1)
-        # Compute Mean of all Quantile loss for the whole batch. Returned loss must
-        # be scalar for autograd.
-        meanLoss = loss.mean()
-        return meanLoss, loss
+        # # Convert List quantile loss Tensors to Tensor.
+        # # list is len (NumOfQuantiles) and items are(n,1). It becomes a tensor of
+        # # shape (n, numOfQuantiles)
+        # loss = torch.cat(loss, dim =1)
+        # # Compute Mean of all Quantile loss for the whole batch. Returned loss must
+        # # be scalar for autograd.
+        # meanLoss = loss.mean()
+        # return meanLoss, loss
 
 # End of Quantile Loss
 # ---------------------------------------------------------------------------------
