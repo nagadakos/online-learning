@@ -53,7 +53,7 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
         # taskLoaders.append(testLoader)
     # return taskLoaders
 
-def init(model = None, reshapeDataTo = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)), quantiles = [0.9], device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
+def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)), quantiles = [0.9], device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -82,6 +82,7 @@ def init(model = None, reshapeDataTo = None, tasks = "All", optimParams = dict(n
         for m in range(len(momnts)):
             for w in range(len(wDecays)):
                 if model == "ANNGreek":
+                    reshapeDataTo = model
                     models.append( ann_greek.ANNGreek(59, outputSize, optimParams['name'],
                                                       lr=lrs[l],momnt=momnts[m], wDecay=wDecays[w]).to(device))
                 elif model == "MLRBIU":
@@ -89,6 +90,7 @@ def init(model = None, reshapeDataTo = None, tasks = "All", optimParams = dict(n
                 elif model == "MRLSimple": 
                     models.append( MLR.LinearRegression(25).to(device))
                 elif "GLMLF" in model:
+                    reshapeDataTo = model
                     models.append( MLR.GLMLFB(model, outputSize).to(device))
                 print("Creating Model: {}@{} at device: {}" .format(model,hex(id(models[idx])), device))
                 idx += 1
@@ -162,7 +164,6 @@ def main():
 
     # Select Architecture here
     arch = "ANNGreek"
-    reshapeDataTo = 'ANNGreek'
     # ---|
 
     # Loss Function Declaration and parameter definitions go here.
@@ -202,7 +203,7 @@ def main():
     # The tasks argument controls which Task folders are going to be loaded for use. Give a list
     # containing the numbers for the task you want i.e [2, 4,5,6,7,12]. If you with to load all
     # Simple set tasks  "All", which is also the default value.
-    dataLoadArgs  = dict(model = arch, reshapeDataTo = reshapeDataTo, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
+    dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
 
     # remember that range(a,b) is actually [a,b) in python.
     predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for
