@@ -139,7 +139,7 @@ class ANNGreek(nn.Module):
            trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
         # If saving history and plots is required.
         if saveHistory == True:
-            self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain")
+            self.save_history(tarFolder = 'PreTrain', fileExt = "preTrain-for-"+str(epochs)+'-epchs')
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
 
         # If no args for tarFolder are given plots go to the preTrain folder.
