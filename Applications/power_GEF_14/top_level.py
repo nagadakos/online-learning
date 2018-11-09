@@ -18,7 +18,7 @@ sys.path.insert(0, tools_path)
 
 from  Solvers import sgd
 from Datasets import GEF_Power
-from Architecture import MLR, ann_forward, ann_greek
+from Architecture import MLR, ann_forward, ann_greek, rnn_some
 from Tools import trainer,plotter,utils
 
 # ================================================================================================================
@@ -92,6 +92,10 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
                 elif "GLMLF" in model:
                     reshapeDataTo = model
                     models.append( MLR.GLMLFB(model, outputSize).to(device))
+                elif model == "RNNsome":
+                    reshapeDataTo = model
+                    models.append( rnn_some.RNNsome(59, outputSize, optimParams['name'],
+                                                      lr=lrs[l],momnt=momnts[m], wDecay=wDecays[w]).to(device))
                 print("Creating Model: {}@{} at device: {}" .format(model,hex(id(models[idx])), device))
                 idx += 1
     # ---|
@@ -159,11 +163,11 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 1          # must be at least 2 for plot with labellines to work
-    batchSize = 10000
+    epochs = 20          # must be at least 2 for plot with labellines to work
+    batchSize = 700
 
     # Select Architecture here
-    arch = "ANNGreek"
+    arch = "RNNsome"
     # ---|
 
     # Loss Function Declaration and parameter definitions go here.
@@ -174,9 +178,9 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.5] #, 0.003, 0.01, 0.3, 0.5]
-    momnt = [0.7]#, 0.2, 0.3, 0.5, 0.7]
-    wDecay= [0.1]#, 0.5]
+    gamma = [0.5, 0.003, 0.01, 0.3]
+    momnt = [0.7, 0.2, 0.3, 0.5]
+    wDecay= [0.1, 0.5]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))
@@ -266,7 +270,6 @@ def main():
     # This should become a function
     filePath = join(dir_path, 'Logs', arch, 'PreTrain')
     f = plotter.get_files_from_path(filePath, "*log1.txt")
-    print(f)
     files = []
     for i in f['files']:
         files.append(join(filePath, i)) 

@@ -290,6 +290,33 @@ class GefPower(Dataset):
             # By this point labels are in the shape (n,), as in all elements in one cell
             # Nee to transform it to (n,1) so it becomes a proper array and can be concatenated
             self.labels = np.reshape(self.labels, (self.labels.shape[0],1))
+
+        elif architecture == "RNNsome":
+
+            temperatures[:,0] = np.amin(temperatures, axis = 1)
+            temperatures[:,1] = np.amax(temperatures, axis = 1)
+            temperatures = temperatures[:, :2]
+
+            #  59 = 2 *24 power readings + 7 for the days encoding + 2* (min + max) temperature values
+            reshapedData = np.zeros((self.data_len-48, 48+7+4))
+            j = 0
+            for i in range(reshapedData.shape[0]):
+                reshapedData[i][0:47] = loads[j:j+47]
+                reshapedData[i][48:55] = to1Hot[j,:]
+                reshapedData[i][55:] = temperatures[j:j+2][:].flatten()  # default flatten is row-major
+                j += 1
+            if self.transform is not None:
+                if self.transform == "normalize":
+                    reshapedData[:, 0:47] -= self.minPower
+                    reshapedData[:, 0:47] /= (self.maxPower - self.minPower)
+                    reshapedData[:,55:]   -= self.min
+                    reshapedData[:,55:]   /= (self.max - self.min)
+                    # self.labels -= self.minPower
+                    # self.labels /= (self.maxPower - self.minPower)
+            # Append the labels
+            self.labels = self.labels[48:] # first 48 lines are used as data in this architecture
+            self.labels = np.reshape(self.labels, (self.labels.shape[0],1))
+
         print("Len of data {}, len of labels {}".format(reshapedData.shape, self.labels.shape))
         reshapedData = np.concatenate([reshapedData, self.labels], axis = 1)
         print("Reshaped file will be saved at: " + savePath)

@@ -104,6 +104,7 @@ def plot_regressor(filesPath, args, title):
         cSel = [randint(0, len(cmaps)-1), randint(0, len(cmaps)-1)]
         c1 = plt.get_cmap(cmaps[cSel[0]])
         # Solid is Train, dashed is test
+        print(a[ridx.trainLoss], len(a[ridx.trainLoss]))
         plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle = '-', label = ext)
         plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+'--'), label = ext)
         plt.legend( loc='lower right')
