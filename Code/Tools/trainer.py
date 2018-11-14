@@ -96,44 +96,51 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     MAE   = 0
     MAPE  = 0
     e = 0.001
-    for idx, (data, label) in enumerate(indata):
-        data, label = data.to(device), label.to(device)
-        # forward pass calculate output of model
-        output = model.forward(data)
-        # Reshape data and labels from (n*modelOutSize,) and (n,) to (n, modelOutSize) and (n,1)
-        pred   = output.view(len(label), output.shape[1])
-        label  = label.view(len(label), 1)
-        # Sanity prints
-        # if idx == 5:
-            # # print("Prediction shape: {} label shape: {}". format(pred.shape, label.shape))
-            # print("Prediction: {}, labels: {}" .format(pred, label))
+    totalSize = 0
 
-        # compute loss
-        if isinstance(lossFunction, QuantileLoss):
-            loss, lossMatrix = lossFunction.forward(pred, label)
-        else:
-            loss = lossFunction(pred, label)
+    if not isinstance(indata, list):
+        indata = [indata]
 
-        MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
-        MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label+e).sum().item()
+    for setID, dSet in enumerate(indata):
+        for idx, (data, label) in enumerate(dSet):
+            data, label = data.to(device), label.to(device)
+            # forward pass calculate output of model
+            output = model.forward(data)
+            # Reshape data and labels from (n*modelOutSize,) and (n,) to (n, modelOutSize) and (n,1)
+            pred   = output.view(len(label), output.shape[1])
+            label  = label.view(len(label), 1)
+            # Sanity prints
+            # if idx == 5:
+                # # print("Prediction shape: {} label shape: {}". format(pred.shape, label.shape))
+                # print("Prediction: {}, labels: {}" .format(pred, label))
 
-        # Backpropagation part
-        # 1. Zero out Grads
-        optim.zero_grad()
-        # 2. Perform the backpropagation based on loss
-        loss.backward()            
-        # 3. Update weights 
-        optim.step()
-       # Training Progress report for sanity purposes! 
-        if idx % 20 == 0 or idx % pred.shape[0] == 0 : 
-            print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(indata),
-                                                                           pred.shape[0], loss.item() ))
-            factor = (idx+1)*pred.shape[0]
-            print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
+            # compute loss
+            if isinstance(lossFunction, QuantileLoss):
+                loss, lossMatrix = lossFunction.forward(pred, label)
+            else:
+                loss = lossFunction(pred, label)
+
+            MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
+            MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label+e).sum().item()
+
+            # Backpropagation part
+            # 1. Zero out Grads
+            optim.zero_grad()
+            # 2. Perform the backpropagation based on loss
+            loss.backward()            
+            # 3. Update weights 
+            optim.step()
+           # Training Progress report for sanity purposes! 
+            if idx % 20 == 0 or idx % pred.shape[0] == 0 : 
+                print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(dSet),
+                                                                               pred.shape[0], loss.item() ))
+                factor = (idx+1)*pred.shape[0]
+                print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
+        totalSize += len(dSet.dataset)
 
     # Log the current train loss
-    MAE  = MAE/len(indata.dataset)
-    MAPE = MAPE*100/len(indata.dataset)
+    MAE  = MAE/totalSize
+    MAPE = MAPE*100/totalSize
     model.history[ridx.trainLoss].append(loss.item())   #get only the loss value
     model.history[ridx.trainMAE].append(MAE)
     model.history[ridx.trainMAPE].append(MAPE)
