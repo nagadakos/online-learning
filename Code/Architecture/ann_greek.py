@@ -83,14 +83,15 @@ class ANNGreek(nn.Module):
         # Default File Saving parameter setting.
         self.targetApp = targetApp 
         self.defSavePath = '/'.join((dir_path, '../../Applications', self.targetApp))
+        self.defSavePrefix = '-'.join((str(self.lr),str(self.momnt), str(self.wDecay)))
         self.defPlotSaveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt), str(self.wDecay), self.loss))    
         # End of init
         # ---------------------------------------------------------------------------------
 
     def forward(self, x): 
 
-        x = F.relu(self.linear(x)) 
-        x = F.relu(self.linear2(x)) 
+        x = F.softmax(self.linear(x)) 
+        x = F.softmax(self.linear2(x)) 
         return x 
 
     def get_model_descr(self):
@@ -112,22 +113,22 @@ class ANNGreek(nn.Module):
          
         return x
 
-    def save_history(self, filePath = None, tarFolder = 'tempLogs', fileExt = '', savePredHist =
+    def save_history(self, filePath = None, rootFolder = '',  tarFolder = 'tempLogs', fileExt = '', savePredHist =
                     False, saveTrainHist = True, saveResults = False, results = None):
 
         if filePath is not None:
             saveFile = filePath
         else:
-            saveFile = '/'.join(( self.defSavePath, 'Logs', self.descr, tarFolder))
+            rootFolder = self.defSavePrefix if rootFolder =='' else rootFolder
+            saveFile = '/'.join(( self.defSavePath, 'Logs', self.descr, rootFolder, tarFolder))
+            sep = '-'
+            saveFile += '/' 
             # Create the Target Directory if does not exist.
             if not os.path.exists(saveFile):
                 os.makedirs(saveFile)
-            saveFile += '/'
-            sep = '-'
             if saveResults == True:
-                saveResFile = saveFile + sep.join((str(self.lr),str(self.momnt), str(self.wDecay),
-                                                fileExt, ".txt"))
-            saveFile += sep.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
+                saveResFile = saveFile + sep.join((self.defSavePrefix, fileExt, ".txt"))
+            saveFile += sep.join((self.defSavePrefix, fileExt, "log1.txt"))
 
         # Save training history or predHistory as required.
         if saveTrainHist == True:
@@ -146,7 +147,7 @@ class ANNGreek(nn.Module):
         return saveFile
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction =
-              nn.MSELoss(),saveHistory = False, savePlot = False):
+              nn.MSELoss(),saveHistory = False, savePlot = False, modelLabel ='', saveRootFolder=''):
 
         epochs = args[0]
         
@@ -160,7 +161,7 @@ class ANNGreek(nn.Module):
            trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction = lossFunction)
            trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
         # If saving history and plots is required.
-        fileExt = "preTrain-for-"+str(epochs)+'-epchs'
+        fileExt = modelLabel + "-preTrain-for-"+str(epochs)+'-epchs'
         if saveHistory == True:
             self.save_history(tarFolder = 'PreTrain', fileExt = fileExt)
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
@@ -169,11 +170,11 @@ class ANNGreek(nn.Module):
         # As: architect-0-optimName-lr-x-momnt-y-wD-z-LossName.png 
         if savePlot == True:
             self.plot(fileExt = fileExt)
-            self.save_plots()
+            self.save_plots(titleExt = fileExt)
     
     # Testing and error reports are done here
     def predict(self, args, device, testLoader, lossFunction = nn.MSELoss(), saveResults = True,
-                tarFolder = 'Predictions', fileExt = ''):
+                tarFolder = 'Predictions', fileExt = '', saveRootFolder = ''):
         taskLabel = args[2]
         print('Prediction mode  active')
         output, loss, lossMatrix = trainer.test_regressor(self, args, device, testLoader, lossFunction = lossFunction,
@@ -181,13 +182,13 @@ class ANNGreek(nn.Module):
 
         # Only save the prediction history and the results, not the training history.
         if saveResults == True:
-           self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', fileExt = fileExt,
+           saveRootFolder = saveRootFolder + '/' if saveRootFolder != '' else saveRootFolder
+           self.save_history(tarFolder = saveRootFolder+tarFolder+'/PredHistoryLogs', fileExt = fileExt,
                              savePredHist = True, saveTrainHist = False) 
-           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt = fileExt+taskLabel+'-lossMatrix', saveTrainHist
-                             = False, saveResults = True, results = lossMatrix) 
-           self.save_history(tarFolder = tarFolder+'/PredResults', fileExt =
-                             fileExt+taskLabel+'-predictions', saveTrainHist
-                             = False, saveResults = True, results = output) 
+           self.save_history(tarFolder = saveRootFolder + tarFolder+'/PredResults', fileExt =
+                             fileExt+taskLabel+'-lossMatrix', saveTrainHist = False, saveResults = True, results = lossMatrix) 
+           self.save_history(tarFolder = saveRootFolder+tarFolder+'/PredResults', fileExt =
+                             fileExt+taskLabel+'-predictions', saveTrainHist = False, saveResults = True, results = output) 
 
 
     def plot(self, filePath = None, logPath = None, tarFolder = 'PreTrain', fileExt = 'preTrain'):
@@ -203,7 +204,7 @@ class ANNGreek(nn.Module):
         if logPath is not None:
             readLog = logPath
         else:
-            readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, tarFolder+'/'))
+            readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, self.defSavePrefix, tarFolder+'/'))
             # readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
             readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
         # Form plot title and facilate plotting
@@ -226,10 +227,7 @@ class ANNGreek(nn.Module):
 
         for i, f in enumerate(self.plots):
             if f is not None:
-                if titleExt is not None:
-                    fileExt = "/" + self.descr + "-" + str(i) + "-" + titleExt + ".png"
-                else:
-                    fileExt = "/" + self.descr + "-" + str(i) + '-' + self.defPlotSaveTitle + ".png"
+                fileExt = "/" + self.descr + "-" + str(i) + '-' + self.defPlotSaveTitle +'-'+ titleExt+ ".png"
             print("*****\nSaving figure: {} at {}****\n".format(self.descr, savePath + fileExt ))
             f.savefig(savePath + fileExt)
 

@@ -382,7 +382,7 @@ class GefPower(Dataset):
         
         dataRange = [self.lowerBnd, self.upperBnd]
         print(dataRange)
-        print(fileSize, self.offset)
+        print("Filesize: {}, fileofset: {}".format(fileSize, self.offset))
         # Check for line read range validity. If UB < LB, reverse them, unless UB = 0.
         # UB = 0, means read the whole file from LB to end.
         if dataRange[1] < dataRange[0] :
@@ -394,7 +394,7 @@ class GefPower(Dataset):
            else:
                dataRange[1] = fileSize + self.offset if task == "Task 1" else fileSize
 
-        print(dataRange)
+        print("Range provided: {}".format(dataRange))
         # Only task 1 has file size larger than offset and actually need the offset check
         if task == "Task 1":
             # if raw data does not have to be reshaped, just read it, taking offset to account.
@@ -448,13 +448,13 @@ if __name__ == "__main__":
                          dataRange=[0, 76799])
 
     myDataset2 = GefPower(task = "Task 1", transform = "normalize",
-                         dataRange= [76800,0])
+                         dataRange= [90000,0])
 
     # print(myDataset)
     # myDataset.get_data_descr()
     print(myDataset.__getitem__(1))
     # print(myDataset.__len__())
-    # print(myDataset2.__len__())
+    print(myDataset2.__len__())
     # item, label  = myDataset2.__getitem__(3)
     # print(item, label)
     print("Size of an instance {}".format(myDataset.get_item_size()))

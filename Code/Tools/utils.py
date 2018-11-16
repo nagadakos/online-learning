@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import sys
 import os 
 import numpy as np
-
+import copy
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -70,6 +70,15 @@ def load_model_dict(model, filePath = None):
 
     model.load_state_dict(torch.load(filePath))
 
+def instantiate_model_from_template(modelTemplate):
+
+    state = modelTemplate.state_dict()
+    state_clone = copy.deepcopy(state)
+    model = modelTemplate
+    model.load_state_dict(state_clone)
+    model.history = [[] for i in range(len(modelTemplate.history))]
+    model.predHistory = [[] for i in range(len(modelTemplate.predHistory))]
+    return model
 
 def main():
     # add this so we can import the trainer and tester modules

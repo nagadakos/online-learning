@@ -95,13 +95,14 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     '''
     MAE   = 0
     MAPE  = 0
-    e = 0.001
-    totalSize = 0
-
+    e = 0.001     # used for avoiding division by 0.
+    totalSize = 0 # used for averaging error in the end
+    factor = 0    # used for AVG MAE display  
     if not isinstance(indata, list):
         indata = [indata]
 
     for setID, dSet in enumerate(indata):
+        print(dSet)
         for idx, (data, label) in enumerate(dSet):
             data, label = data.to(device), label.to(device)
             # forward pass calculate output of model
@@ -131,13 +132,13 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
             # 3. Update weights 
             optim.step()
            # Training Progress report for sanity purposes! 
-            if idx % 20 == 0 or idx % pred.shape[0] == 0 : 
+            if idx % 4 == 0 or idx % pred.shape[0] == 0 : 
                 print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(dSet),
                                                                                pred.shape[0], loss.item() ))
-                factor = (idx+1)*pred.shape[0]
+                factor += pred.shape[0]
                 print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
         totalSize += len(dSet.dataset)
-
+    print("After train loop")
     # Log the current train loss
     MAE  = MAE/totalSize
     MAPE = MAPE*100/totalSize
@@ -152,31 +153,36 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
     MAE  = 0 
     MAPE = 0
     loss = 0
-    testSize = len(testLoader.dataset)
+    totalSize = 0
     batchSize = args[1]
     # Inform Pytorch that keeping track of gradients is not required in
     # testing phase.
     with torch.no_grad():
-        for data, label in testLoader:
-            data, label = data.to(device), label.to(device)
-            output = model.forward(data)
-            # Reshape data and labels from (n*modelOutSize,) and (n,) to (n, modelOutSize) and (n,1)
-            pred   = output.view(len(label), output.shape[1])
-            label  = label.view(len(label), 1)
 
-            if isinstance(lossFunction, QuantileLoss):
-                # Sum all loss terms and tern then into a numpy number for late use.
-                loss, lossMatrix = lossFunction(pred, label)
-                loss= loss.item()
-            else:
-                loss = lossFunction(pred, label).item()
-            # TODO: Properly define MAE and MAPE in Quantile Regression setting.
-            MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
-            MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
-    
+        if not isinstance(testLoader, list):
+            testLoader = [testLoader]
+        for setID, dSet in enumerate(testLoader):
+            for data, label in dSet:
+                data, label = data.to(device), label.to(device)
+                output = model.forward(data)
+                # Reshape data and labels from (n*modelOutSize,) and (n,) to (n, modelOutSize) and (n,1)
+                pred   = output.view(len(label), output.shape[1])
+                label  = label.view(len(label), 1)
+
+                if isinstance(lossFunction, QuantileLoss):
+                    # Sum all loss terms and tern then into a numpy number for late use.
+                    loss, lossMatrix = lossFunction(pred, label)
+                    loss= loss.item()
+                else:
+                    loss = lossFunction(pred, label).item()
+                # TODO: Properly define MAE and MAPE in Quantile Regression setting.
+                MAE  += torch.FloatTensor.abs(pred.sub(label)).sum().item()
+                MAPE += torch.FloatTensor.abs(pred.sub(label)).div(label).mul(100).sum().item()
+            totalSize += len(dSet.dataset)
+        
         # Log the current train loss
-    MAE  = MAE/ testSize
-    MAPE = MAPE/testSize  
+    MAE  = MAE/ totalSize
+    MAPE = MAPE/totalSize  
     loss = loss 
     
 

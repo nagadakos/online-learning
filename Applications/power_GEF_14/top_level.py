@@ -5,7 +5,6 @@ import torchvision.transforms as tTrans
 import os
 from os.path import join
 import matplotlib.pyplot as plt
-import copy
 import torch.nn as nn
 import numpy as np
 from random import randint
@@ -53,7 +52,8 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
         # taskLoaders.append(testLoader)
     # return taskLoaders
 
-def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)), quantiles = [0.9], device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
+def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)),
+         quantiles = [0.9], device = "cpu", trainingScheme =dict(preTrainOn = ['5 Years'] , update ='Benchmark') , batchSize = 1000):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -108,6 +108,12 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
     # delimitered by spaces.
     dataPath = None
+    preTrainYears = int(trainingScheme['preTrainOn'][0][0])
+    # Task 1 file offset.
+    trainDataRange = [0, 35064 + int(preTrainYears * 365.25)*24] if trainingScheme['update'] != 'Benchmark' else [0, 90000]
+    print(trainDataRange)
+    testDataRange = [trainDataRange[1], 0]
+
     trainSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
                                   "normalize",dataRange= trainDataRange) 
     valSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
@@ -119,7 +125,7 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     trainLoader = torch.utils.data.DataLoader(trainSet, batch_size = batchSize, **comArgs)
     valLoader = torch.utils.data.DataLoader(valSet, batch_size = batchSize, **comArgs)
 
-    # If required return the task loaders for the online schemes.
+        # If required return the task loaders for the online schemes.
     filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
     taskLoaders = []
     for i, t in enumerate(filesNum):
@@ -132,7 +138,32 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     print(len(taskLoaders[0].dataset))
     print(testSet.__getitem__(0))
 
-    return models, optimTemplate, trainLoader, valLoader, taskLoaders
+    # Generate a schedule of training and testing schemes.
+    schedule = dict( trainOn = [], testOn = [], labels =[], testLabels =[])
+    # Benchmark creates a benchmark case for online training.
+    # It uses naively, all available data up to a point to train, and 
+    # tests on the rest. I.e train on Task1, 2 ,3 and test on task 4: end.
+    # The trainset start from Task 1, Task 1 + val, Task 1 + val + Task 2...
+    # The test set Val + Task loaders, Taskloaders, TaskLoaders[2:end] ...
+    if trainingScheme['update'] == 'Benchmark':
+        schedule['trainOn'].append([trainLoader])
+        schedule['testOn'].append(taskLoaders)
+        schedule['labels'].append(['Task 1'])
+        schedule['testLabels'].append(['Task ' + str(t) for i ,t in enumerate(filesNum)])
+        for i, t in enumerate(filesNum[:-1]):
+            print(i, t)
+            prevTrain = schedule['trainOn'][i].copy()
+            prevLabels  = schedule['labels'][i].copy()
+            prevTrain.append(taskLoaders[i])
+            prevLabels.append('Task '+str(i+2))
+            schedule['trainOn'].append(prevTrain)
+            schedule['testOn'].append(taskLoaders[i+1:])
+            schedule['labels'].append(prevLabels)
+            schedule['testLabels'].append(['Task ' + str(t) for i ,t in enumerate(filesNum[i+1:])])
+    # print(schedule)
+    # print(schedule['testLabels'])
+    # ---|
+    return models, optimTemplate, trainLoader, valLoader, taskLoaders, schedule
 
 # ------------------------------------------------------------------------------------------------------------------
 # Main Function 
@@ -159,7 +190,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 1          # must be at least 2 for plot with labellines to work
+    epochs = 30          # must be at least 2 for plot with labellines to work
     batchSize = 10000
 
     # Select Architecture here
@@ -184,6 +215,8 @@ def main():
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
+    trainingScheme= dict(preTrainOn = ["5 Years"], update = "Benchmark")   # monthly, weekly,
+                                                                         # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
 
@@ -198,12 +231,14 @@ def main():
     # SECTION B
     # **********
     # Start of working logic.
+
+
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
     # The tasks argument controls which Task folders are going to be loaded for use. Give a list
     # containing the numbers for the task you want i.e [2, 4,5,6,7,12]. If you with to load all
     # Simple set tasks  "All", which is also the default value.
-    dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = batchSize)
+    dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainingScheme = trainingScheme , batchSize = batchSize)
 
     # remember that range(a,b) is actually [a,b) in python.
     predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for
@@ -212,7 +247,7 @@ def main():
     # Models are initilized with the same weights. The number of models returned is
     # a function of the combinization of optimizer parameters lr*moment*weight decay.
     # Note: Do not change.
-    modelsList, optimTemplate, trainLoader, valLoader, testLoaders = init(**dataLoadArgs)
+    modelsList, optimTemplate, trainLoader, valLoader, testLoaders, schedule = init(**dataLoadArgs)
 
     # Model Train Invocation and other handling here
     args = []
@@ -229,36 +264,43 @@ def main():
     for l in range(len(gamma)):
         for m in range(len(momnt)):
             for w in range(len(wDecay)):
-                model = modelsList[idx]
-                print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
+                for trainLoaders, tests, testLabels in zip(schedule['trainOn'], schedule['testOn'],
+                                                          schedule['testLabels']):
+                    # Use model in target position at a template
+                    # model = utils.instantiate_model_from_template(modelsList[idx])
+                    model =modelsList[idx]
+                    print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
                                                                       wDecay[w]))
-                # NOTE: Deep copy and set parameters seems to not work. When used it probably
-                # does not update the iptimizer to the new model's paramaters. Mystyriously the loss
-                # is reduced phenomenally by this. Why?
-                # optim = copy.deepcopy(optimTemplate)
-                # optim.set_params(model.parameters(), lr=gamma[l], momentum=momnt[m], weight_decay=wDecay[w])
-                optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
-                                                                   wDecay=[wDecay[w]]))
-                optim = init_optim(model.parameters(), optimParams)
-                model
-                # Invoke training an Evaluation
-                model.train(args,device, trainLoader, valLoader,optim, loss, saveHistory = True,
-                            savePlot = True)
-                model.save(titleExt= '-trainedFor-'+str(epochs))
-                # ---|
+                    # print(trainLoaders, tests)
+                    print(len(trainLoaders), len(tests))
+                    modelTrainInfo = 'Trained-on-'+ str(len(trainLoaders))
+                    # NOTE: Deep copy and set parameters seems to not work. When used it probably
+                    # does not update the iptimizer to the new model's paramaters. Mystyriously the loss
+                    # is reduced phenomenally by this. Why?
+                    # optim = copy.deepcopy(optimTemplate)
+                    # optim.set_params(model.parameters(), lr=gamma[l], momentum=momnt[m], weight_decay=wDecay[w])
+                    optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
+                                                                       wDecay=[wDecay[w]]))
+                    optim = init_optim(model.parameters(), optimParams)
+                    # Invoke training an Evaluation
+                    model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True,
+                                savePlot = True, modelLabel = modelTrainInfo)
+                    model.save(titleExt= '-trainedFor-'+str(epochs))
+                    # ---|
 
-                # Predictions 
-                # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
-                for i, loader in enumerate(testLoaders):
-                    args[2] = predLabels[i]
-                    print(args[2])
-                    model.predict(args, device, loader,lossFunction = loss)
-                # ---|
+                    # Predictions 
+                    # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
+                    for i, loader in enumerate(tests):
+                        args[2] = modelTrainInfo +'-tasks-pred-on-'+ testLabels[i]
+                        print(args[2])
+                        model.predict(args, device, loader,lossFunction = loss, tarFolder =
+                                      'Predictions/'+ modelTrainInfo)
+                    # ---|
 
-                # Report saving and printouts go here
-                # print("Training history:")
-                # print(model.history)
-                modelHistories[idx] = model.history
+                    # Report saving and printouts go here
+                    # print("Training history:")
+                    # print(model.history)
+                    modelHistories[idx] = model.history
                 idx += 1
     # ---|
 
