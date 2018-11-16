@@ -90,8 +90,11 @@ class ANNGreek(nn.Module):
 
     def forward(self, x): 
 
-        x = F.softmax(self.linear(x)) 
-        x = F.softmax(self.linear2(x)) 
+        x = F.softmax(self.linear(x), dim=1) 
+        x = F.softmax(self.linear2(x), dim=1) 
+        # x = F.relu(self.linear(x)) 
+        # x = F.relu(self.linear2(x)) 
+
         return x 
 
     def get_model_descr(self):
