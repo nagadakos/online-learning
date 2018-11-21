@@ -7,7 +7,7 @@ import numpy as np
 import sys
 import os 
 from os.path import join
-
+from random import shuffle
 
 # Add this files directory location, so we can include the index definitions
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -46,14 +46,14 @@ class ANNGreek(nn.Module):
     '''
 
     def __init__(self, inSize = 2, outSize = 1, loss = "Quantile", optim = "SGD", lr=0.1, momnt=0,
-            wDecay=0, targetApp = "power_GEF_14"): 
+            wDecay=0, targetApp = "power_GEF_14", seed = 1): 
         super(ANNGreek, self).__init__() 
 
         # ===============================================================================
         # SECTION A
         # **********
         # NOTE: Change this appropriately for new Architectures! 
-        #   
+        #              
         # *******************************************************
         # Ceclare Name here. Used for saving and annotation.
         self.descr = "ANNGreek" 
@@ -62,6 +62,13 @@ class ANNGreek(nn.Module):
         # Declare the layers here
         self.linear = nn.Linear(inSize, 24)  # 10 nodes are specified in the thesis.
         self.linear2 = nn.Linear(24, outSize)  # 10 nodes are specified in the thesis.
+        # Set seed for random generator
+        torch.manual_seed(seed)
+        x = 0.5 
+        nn.init.uniform_(self.linear.weight, -x, x)
+        nn.init.uniform_(self.linear.bias, -x, x)
+        nn.init.uniform_(self.linear2.weight, -x, x)
+        nn.init.uniform_(self.linear2.bias, -x, x)
         # ---|
 
         # *******************************************************
@@ -150,19 +157,29 @@ class ANNGreek(nn.Module):
         return saveFile
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction =
-              nn.MSELoss(),saveHistory = False, savePlot = False, modelLabel ='', saveRootFolder=''):
+              nn.MSELoss(),saveHistory = False, savePlot = False, modelLabel ='', saveRootFolder='',
+             shuffleTrainLoaders = False):
 
         epochs = args[0]
-        
+        # Create deep copies of the arguments, might be required to the change. 
         trainerArgs = args.copy()
         testerArgs = args.copy()
         testerArgs[1] *= 4 
 
+        # Make sure given train loader is a list
+        if not isinstance(trainLoader, list):
+            trainLoader = [trainLoader]
+        
+        # For each epoch train and then test on validation set.
         for e in range(epochs):
-           trainerArgs[0] = e 
-           testerArgs[0] = e 
-           trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction = lossFunction)
-           trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
+            # If random train order is required, randomize here. Keep in mind this is inplace.
+            # It will affect the order of the input trainLoader list.
+            if shuffleTrainLoaders == True:
+                shuffle(trainLoader)
+            trainerArgs[0] = e 
+            testerArgs[0] = e 
+            trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction = lossFunction)
+            trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
         # If saving history and plots is required.
         fileExt = modelLabel + "-preTrain-for-"+str(epochs)+'-epchs'
         if saveHistory == True:
@@ -261,17 +278,17 @@ class ANNGreek(nn.Module):
         utils.load_model_dict(self, loadPath)
 
 
+    def print_out(self, mode='history'):
 
-
-    def report(self):
-
-        print("Current stats of ANNSLF:")
-        print("MAE:           {}" .format(self.history[ridx.trainMAE][-1]))
-        print("MAPE:          {}" .format(self.history[ridx.trainMAPE][-1]))
-        print("Training Loss: {}" .format(self.history[ridx.trainLoss][-1]))
-        print("Test MAE:      {}" .format(self.history[ridx.testMAE][-1]))
-        print("Test MAPE:     {}" .format(self.history[ridx.testMAE][-1]))
-        print("Test Loss:     {}" .format(self.history[ridx.testLoss][-1]))
-
+        if mode == 'History':
+            print("Current stats of ANNSLF:")
+            print("MAE:           {}" .format(self.history[ridx.trainMAE][-1]))
+            print("MAPE:          {}" .format(self.history[ridx.trainMAPE][-1]))
+            print("Training Loss: {}" .format(self.history[ridx.trainLoss][-1]))
+            print("Test MAE:      {}" .format(self.history[ridx.testMAE][-1]))
+            print("Test MAPE:     {}" .format(self.history[ridx.testMAE][-1]))
+            print("Test Loss:     {}" .format(self.history[ridx.testLoss][-1]))
+        if mode == 'params':
+            print(list(self.parameters()))
 
 

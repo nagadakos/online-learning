@@ -147,9 +147,9 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # The test set Val + Task loaders, Taskloaders, TaskLoaders[2:end] ...
     if trainingScheme['update'] == 'Benchmark':
         schedule['trainOn'].append([trainLoader])
-        schedule['testOn'].append(taskLoaders)
+        schedule['testOn'].append([taskLoaders[0]])
         schedule['labels'].append(['Task 1'])
-        schedule['testLabels'].append(['Task ' + str(t) for i ,t in enumerate(filesNum)])
+        schedule['testLabels'].append(['Task ' + str(filesNum[0])])
         for i, t in enumerate(filesNum[:-1]):
             print(i, t)
             prevTrain = schedule['trainOn'][i].copy()
@@ -157,10 +157,11 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
             prevTrain.append(taskLoaders[i])
             prevLabels.append('Task '+str(i+2))
             schedule['trainOn'].append(prevTrain)
-            schedule['testOn'].append(taskLoaders[i+1:])
+            schedule['testOn'].append([taskLoaders[i+1]])
             schedule['labels'].append(prevLabels)
-            schedule['testLabels'].append(['Task ' + str(t) for i ,t in enumerate(filesNum[i+1:])])
+            schedule['testLabels'].append(['Task ' + str(filesNum[i+1])])
     # print(schedule)
+    # print(schedule['testOn'])
     # print(schedule['testLabels'])
     # ---|
     return models, optimTemplate, trainLoader, valLoader, taskLoaders, schedule
@@ -205,9 +206,9 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.5] #, 0.003, 0.01, 0.3, 0.5]
-    momnt = [0.7]#, 0.2, 0.3, 0.5, 0.7]
-    wDecay= [0.1]#, 0.5]
+    gamma = [0.9] #, 0.003, 0.01, 0.3, 0.5]
+    momnt = [0.9]#, 0.2, 0.3, 0.5, 0.7]
+    wDecay= [0.01]#, 0.5]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))
@@ -261,14 +262,16 @@ def main():
     # For each parameter evaluate a model. Each models keep track of its history, and the optimizer
     # params with which it was trained.  
     idx = 0
+    # TODO: Define validation, simple use and benchmark routines on top level.
     for l in range(len(gamma)):
         for m in range(len(momnt)):
             for w in range(len(wDecay)):
                 for trainLoaders, tests, testLabels in zip(schedule['trainOn'], schedule['testOn'],
                                                           schedule['testLabels']):
                     # Use model in target position at a template
-                    # model = utils.instantiate_model_from_template(modelsList[idx])
-                    model =modelsList[idx]
+                    model = utils.instantiate_model_from_template(modelsList[idx])
+                    # print(list(model.parameters()))
+                    # model =modelsList[idx]
                     print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
                                                                       wDecay[w]))
                     # print(trainLoaders, tests)
@@ -283,8 +286,9 @@ def main():
                                                                        wDecay=[wDecay[w]]))
                     optim = init_optim(model.parameters(), optimParams)
                     # Invoke training an Evaluation
-                    model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True,
-                                savePlot = True, modelLabel = modelTrainInfo)
+                    model.train(args,device, trainLoader, valLoader, optim, loss, saveHistory = True,
+                                savePlot = True, modelLabel = modelTrainInfo, shuffleTrainLoaders =
+                               True)
                     model.save(titleExt= '-trainedFor-'+str(epochs))
                     # ---|
 
@@ -303,10 +307,11 @@ def main():
                     modelHistories[idx] = model.history
                 idx += 1
     # ---|
-
+    modelLabel = "0.5-0.7-0.1"
     # Plot total evaluation plot
     # This should become a function
-    filePath = join(dir_path, 'Logs', arch, 'PreTrain')
+    # keep in mind that join ignore blank strings
+    filePath = join(dir_path, 'Logs', arch, modelLabel, 'PreTrain')
     f = plotter.get_files_from_path(filePath, "*log1.txt")
     print(f)
     files = []
