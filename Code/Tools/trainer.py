@@ -138,7 +138,6 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
                 factor += pred.shape[0]
                 print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
         totalSize += len(dSet.dataset)
-    print("After train loop")
     # Log the current train loss
     MAE  = MAE/totalSize
     MAPE = MAPE*100/totalSize

@@ -160,6 +160,12 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
             schedule['testOn'].append([taskLoaders[i+1]])
             schedule['labels'].append(prevLabels)
             schedule['testLabels'].append(['Task ' + str(filesNum[i+1])])
+    elif trainingScheme['update'] == 'ParamEvaluation':
+        schedule['trainOn'].append([trainLoader])
+        schedule['testOn'].append([valLoader])
+        schedule['labels'].append(['Task 1'])
+        schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
+
     # print(schedule)
     # print(schedule['testOn'])
     # print(schedule['testLabels'])
@@ -191,8 +197,8 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 10          # must be at least 2 for plot with labellines to work
-    batchSize = 5000
+    epochs = 15         # must be at least 2 for plot with labellines to work
+    batchSize = 1000
 
     # Select Architecture here
     arch = "ANNGreek"
@@ -206,9 +212,9 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.9] #, 0.003, 0.01, 0.3, 0.5]
-    momnt = [0.9]#, 0.2, 0.3, 0.5, 0.7]
-    wDecay= [0.01]#, 0.5]
+    gamma = [0.5]#, 0.9]
+    momnt = [0.1]#, 0.5]
+    wDecay= [0.01]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))
@@ -216,7 +222,9 @@ def main():
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
-    trainingScheme= dict(preTrainOn = ["5 Years"], update = "Benchmark")   # monthly, weekly,
+    availSchemes = ['Benchmark', 'ParamEvaluation']
+    scheme = availSchemes[0] # Benchmark, ParamEvaluation
+    trainingScheme= dict(preTrainOn = ["4 Years"], update = scheme)   # monthly, weekly,
                                                                          # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
@@ -254,11 +262,11 @@ def main():
     args = []
     args.append(epochs)
     args.append(batchSize)
-    args.append('Task 1')  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
+    args.append('Trained up to Task 1')  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
 
     # List that holds all histories. 
     modelHistories = [modelsList[0].history for i in range(totalModels)]  
-
+    evalPlotLabels = [args[2]]
     # For each parameter evaluate a model. Each models keep track of its history, and the optimizer
     # params with which it was trained.  
     idx = 0
@@ -269,58 +277,59 @@ def main():
                 for trainLoaders, tests, testLabels in zip(schedule['trainOn'], schedule['testOn'],
                                                           schedule['testLabels']):
                     # Use model in target position at a template
-                    model = utils.instantiate_model_from_template(modelsList[idx])
-                    # print(list(model.parameters()))
-                    # model =modelsList[idx]
+                    model = modelsList[idx].create_copy(device)
                     print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
                                                                       wDecay[w]))
                     # print(trainLoaders, tests)
                     print(len(trainLoaders), len(tests))
                     modelTrainInfo = 'Trained-on-'+ str(len(trainLoaders))
-                    # NOTE: Deep copy and set parameters seems to not work. When used it probably
-                    # does not update the iptimizer to the new model's paramaters. Mystyriously the loss
-                    # is reduced phenomenally by this. Why?
-                    # optim = copy.deepcopy(optimTemplate)
-                    # optim.set_params(model.parameters(), lr=gamma[l], momentum=momnt[m], weight_decay=wDecay[w])
+
+                    # Instantiate solver according to input params
                     optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
                                                                        wDecay=[wDecay[w]]))
                     optim = init_optim(model.parameters(), optimParams)
+
                     # Invoke training an Evaluation
-                    model.train(args,device, trainLoader, valLoader, optim, loss, saveHistory = True,
+                    model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True,
                                 savePlot = True, modelLabel = modelTrainInfo, shuffleTrainLoaders =
-                               True)
+                               True, saveRootFolder =scheme)
                     model.save(titleExt= '-trainedFor-'+str(epochs))
                     # ---|
 
                     # Predictions 
                     # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
-                    for i, loader in enumerate(tests):
-                        args[2] = modelTrainInfo +'-tasks-pred-on-'+ testLabels[i]
-                        print(args[2])
-                        model.predict(args, device, loader,lossFunction = loss, tarFolder =
-                                      'Predictions/'+ modelTrainInfo)
+                    # for i, loader in enumerate(tests):
+                        # args[2] = modelTrainInfo +'-tasks-pred-on-'+ testLabels[i]
+                        # print(args[2])
+                        # model.predict(args, device, loader,lossFunction = loss, tarFolder =
+                                      # 'Predictions/'+ modelTrainInfo)
                     # ---|
 
                     # Report saving and printouts go here
                     # print("Training history:")
                     # print(model.history)
                     modelHistories[idx] = model.history
+                    args[2] = 'Train up to ' + testLabels[-1]  
+                    evalPlotLabels.append(args[2])
                 idx += 1
     # ---|
-    modelLabel = "0.5-0.7-0.1"
-    # Plot total evaluation plot
+    # modelLabel = "0.5-0.7-0.1"
+    modelLabel = scheme    # Plot total evaluation plot
     # This should become a function
     # keep in mind that join ignore blank strings
     filePath = join(dir_path, 'Logs', arch, modelLabel, 'PreTrain')
-    f = plotter.get_files_from_path(filePath, "*log1.txt")
+    f = plotter.get_files_from_path(filePath, "*preTrain-for-"+str(epochs)+"-epchs-log1.txt")
     print(f)
     files = []
     for i in f['files']:
         files.append(join(filePath, i)) 
     print("****\nPlotting Evaluation Curves...\n****")
     title = arch +' Learning Curves Evaluation\n Solid: Train, Dashed: Test'
-    plotter.plot_regressor(files, 1, title)
-    plt.savefig(dir_path + '/Plots/' + arch +'/eval-plot-'+str(randint(0,20))+'.png')
+    plotter.plot_regressor(files, 1, title, labels=evalPlotLabels)
+    # plt.savefig(dir_path + '/Plots/' + arch +'/' + '/eval-plot-'+str(randint(0,20))+'.png')
+    plotSavePath = join(dir_path, 'Plots', arch , modelLabel, 'eval-plot-'+str(randint(0,20))+'.png')
+    print('Saving {} evaluation plots at: {}'.format(scheme, plotSavePath))
+    plt.savefig(plotSavePath)
     plt.close()
 #  End of main
 #  -------------------------------------------------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optm
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 import sys
 import os 
 from os.path import join
@@ -97,10 +98,12 @@ class ANNGreek(nn.Module):
 
     def forward(self, x): 
 
-        x = F.softmax(self.linear(x), dim=1) 
-        x = F.softmax(self.linear2(x), dim=1) 
+        # x = F.softmax(self.linear(x), dim=1) 
+        # x = F.softmax(self.linear2(x), dim=0) 
         # x = F.relu(self.linear(x)) 
         # x = F.relu(self.linear2(x)) 
+        x = F.elu(self.linear(x)) 
+        x = F.elu(self.linear2(x)) 
 
         return x 
 
@@ -183,14 +186,14 @@ class ANNGreek(nn.Module):
         # If saving history and plots is required.
         fileExt = modelLabel + "-preTrain-for-"+str(epochs)+'-epchs'
         if saveHistory == True:
-            self.save_history(tarFolder = 'PreTrain', fileExt = fileExt)
+            self.save_history(tarFolder = 'PreTrain', fileExt = fileExt, rootFolder=saveRootFolder)
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))
 
         # If no args for tarFolder are given plots go to the preTrain folder.
         # As: architect-0-optimName-lr-x-momnt-y-wD-z-LossName.png 
         if savePlot == True:
-            self.plot(fileExt = fileExt)
-            self.save_plots(titleExt = fileExt)
+            self.plot(fileExt = fileExt, rootFolder=saveRootFolder)
+            self.save_plots(titleExt = fileExt, saveRootFolder=saveRootFolder)
     
     # Testing and error reports are done here
     def predict(self, args, device, testLoader, lossFunction = nn.MSELoss(), saveResults = True,
@@ -211,7 +214,7 @@ class ANNGreek(nn.Module):
                              fileExt+taskLabel+'-predictions', saveTrainHist = False, saveResults = True, results = output) 
 
 
-    def plot(self, filePath = None, logPath = None, tarFolder = 'PreTrain', fileExt = 'preTrain'):
+    def plot(self, filePath = None, logPath = None, rootFolder ='',tarFolder = 'PreTrain', fileExt = 'preTrain'):
         ''' Description: This function is a wrapper for the appropriate plot function
                          Found in the Tools package. It handles any architecture spec
                          cific details, that the general plot function does not, such
@@ -221,10 +224,11 @@ class ANNGreek(nn.Module):
         # Args is currently empty. Might have a use for some plotting arguments
         # In the future. Currently none are implemented.
         args = []
+        rootFolder = self.defSavePrefix if rootFolder =='' else rootFolder
         if logPath is not None:
             readLog = logPath
         else:
-            readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, self.defSavePrefix, tarFolder+'/'))
+            readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, rootFolder, tarFolder+'/'))
             # readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
             readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
         # Form plot title and facilate plotting
@@ -232,14 +236,14 @@ class ANNGreek(nn.Module):
         self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
 
     # Save plots
-    def save_plots(self, savePath = None, titleExt = None, tarFolder = 'PreTrain'):
+    def save_plots(self, savePath = None, titleExt = None, saveRootFolder ='',tarFolder = 'PreTrain'):
         '''Description: This function saves all plots of model.
                         If no target path is given, the default is selected.
                         The default is the PreTrain folder of target architecture
                         and application.
         '''
         if savePath is None:
-            savePath = '/'.join(( self.defSavePath, 'Plots', self.descr, tarFolder))
+            savePath = '/'.join(( self.defSavePath, 'Plots', self.descr, saveRootFolder, tarFolder))
             # savePath = dir_path + "/../../Applications/power_GEF_14/Plots/" + self.descr
             # Create the Target Directory if does not exist.
             if not os.path.exists(savePath):
@@ -291,4 +295,14 @@ class ANNGreek(nn.Module):
         if mode == 'params':
             print(list(self.parameters()))
 
-
+    def create_copy(self, device, returnDataShape = 0):
+           
+        state_clone = copy.deepcopy(self.state_dict())
+        model = ANNGreek(59, self.linear2.out_features, lr = self.lr, momnt=self.momnt,
+                         wDecay=self.wDecay).to(device)
+        model.load_state=dict(state_clone)
+        reShapeDataTo = self.descr
+        if returnDataShape == 1:
+            return model, reShapeDataTo
+        else:
+            return model

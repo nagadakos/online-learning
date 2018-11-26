@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib import markers
 import numpy as np
 import os
 import sys
@@ -51,7 +52,7 @@ def get_cmap(n, name='hsv'):
     '''
     return plt.cm.get_cmap(name, n)
 
-def plot_regressor(filesPath, args, title):
+def plot_regressor(filesPath, args, title, labels=[]):
 
     if not isinstance(filesPath, list):
         files = [filesPath]
@@ -89,23 +90,32 @@ def plot_regressor(filesPath, args, title):
                      'tab10', 'tab20', 'tab20b', 'tab20c']
     # Create an iterator for colors, for automated plots.
     cycol = cycle('bgrcmk')
-    labels = []
     ext_list = []
     test_loss_list = []
+    markerList = list(markers.MarkerStyle.markers.keys())[:-4] 
+    print(markerList)
     for i, rep in enumerate(reps):
         # print(cmap(i))
         a = np.asarray(rep, dtype = np.float32)
         epchs = np.arange(1, epochs+1)
         # WHen plotting multiple stuff in one command, keyword arguments go last and apply for all
         # plots.
-        ext = os.path.split(files[i])[1].split('-') 
-        ext = ' '.join(('lr', ext[0],'m',ext[1],'wD',ext[2]))
+        # If labels are given
+        if not labels: 
+            ext = os.path.split(files[i])[1].split('-') 
+            ext = ' '.join(('lr', ext[0],'m',ext[1],'wD',ext[2]))
+        else:
+            ext = labels[i]
+            print(ext)
         # Select color for the plot
         cSel = [randint(0, len(cmaps)-1), randint(0, len(cmaps)-1)]
         c1 = plt.get_cmap(cmaps[cSel[0]])
         # Solid is Train, dashed is test
-        plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle = '-', label = ext)
-        plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+'--'), label = ext)
+        marker = markerList[randint(0, len(markerList))]
+        plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle =
+                 '-', marker=marker, label = ext)
+        # plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+markerList[rndIdx]+'--'), label = ext)
+        plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = '--', marker=marker, label = ext)
         plt.legend( loc='lower right')
         ext_list.append(ext)
         test_loss_list.append(a[ridx.testLoss][-1])
@@ -158,7 +168,8 @@ def main():
     title = 'Multi-Linear Regression MSE Loss vs Epoch plot'
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/PreTrain"
+    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
     f = get_files_from_path(filePath, "*log1.txt")
