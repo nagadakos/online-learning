@@ -165,7 +165,7 @@ def plot_all_in_one(reps, epochs, title):
     print("Hellos")
 
 def main():
-    title = 'Multi-Linear Regression MSE Loss vs Epoch plot'
+    title = 'ANNGREEK Learning Curves Evaluation\n Solid: Train, Dashed: Test'
     # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
@@ -179,7 +179,8 @@ def main():
     for i in f['files']:
         files.append(join(filePath, i)) 
     print(files)
-    plot_regressor(files, 1, title)
+    labels = ['Trained on ' + str(i+1) for i in range(15)]
+    plot_regressor(files, 1, title, labels = labels)
     plt.savefig("../../Applications/power_GEF_14/Plots/best_learning2.png")
     plt.close()
 
