@@ -7,7 +7,7 @@ from Code.Tools import QLFunction
 
 Task_num = 3
 
-quantiles = [0.5, 0.9]
+quantiles = [0.01*i for i in range(1,100)]
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -31,7 +31,8 @@ t2_values = torch.from_numpy(np.array(train.values[:, 2], dtype=float)).to(devic
 # predict = pd.read_csv(Predicted_path)
 # predict_path = base_path + str(Task_num+1)
 predict_path = os.path.join(dir_path, "../../Applications/power_GEF_14/Logs/RNNsome/Predictions/PredResults")
-predict_path = os.path.join(predict_path, "0.5-0.7-0.1-Task " + str(Task_num+1) + "-predictions-.txt")
+predict_path = os.path.join(predict_path, "0.01-0.7-0.1-Task " + str(Task_num+1) + "-predictions-.txt")
+# predict_path = os.path.join(predict_path, "0.01-0.5-0.5-Task " + str(Task_num+1) + "-predictions-.txt")
 predict = open(predict_path, 'r')
 p = []
 for values in predict:
@@ -42,8 +43,8 @@ for values in predict:
     p.append(t_for_hour)
 predict = torch.from_numpy(np.array(p, dtype=float)).to(device)
 
-p50_values = torch.from_numpy(np.array(predict[:, 50], dtype=float)).to(device)
-p90_values = torch.from_numpy(np.array(predict[:, 90], dtype=float)).to(device)
+p50_values = torch.from_numpy(np.array(predict[:, 49], dtype=float)).to(device)
+p90_values = torch.from_numpy(np.array(predict[:, 89], dtype=float)).to(device)
 
 y_train = np.append(t1_values.cpu().numpy(), t2_values.cpu().numpy())
 y_p50 = p50_values.cpu().numpy()

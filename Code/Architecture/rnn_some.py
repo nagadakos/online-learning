@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import os
+from itertools import chain
 from os.path import join
 
 # Add this files directory location, so we can include the index definitions
@@ -60,16 +61,27 @@ class RNNsome(nn.Module):
         self.descr = "RNNsome"
         # ---|
 
+        self.quantiles = [0.01*i for i in range(1,100)]
+        self.num_quantiles = len(self.quantiles)
         self.hidden_layer = 64
-        self.num_layer = 2
-        # Declare the layers here
-        self.lstm = nn.LSTM(
-            inSize,
-            self.hidden_layer,
-            self.num_layer,
-            batch_first=True) #(batch_size, time steps, features)
-        # self.fc = nn.Linear(self.hidden_layer, 1)
-        self.fc = nn.Linear(self.hidden_layer, 99)
+        self.num_layer = 1
+        # # Declare the layers here
+        # self.lstm = nn.LSTM(
+        #     inSize,
+        #     self.hidden_layer,
+        #     self.num_layer,
+        #     batch_first=True) #(batch_size, time steps, features)
+        #
+        # final_layers = [nn.Linear(self.hidden_layer, 1) for _ in range(2)]
+        # self.fc = nn.ModuleList(final_layers)
+        self.dropout = 0.5
+        self.in_shape = inSize
+        self.out_shape = outSize
+        self.build_model()
+        self.init_weights()
+
+
+        # self.fc = nn.Linear(self.hidden_layer, 99)
         # ---|
 
         # *******************************************************
@@ -97,15 +109,38 @@ class RNNsome(nn.Module):
         # End of init
         # ---------------------------------------------------------------------------------
 
+    def build_model(self):
+        self.base_model = nn.Sequential(
+            nn.Linear(self.in_shape, 64),
+            nn.ReLU(),
+            # nn.BatchNorm1d(64),
+            nn.Dropout(self.dropout),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            # nn.BatchNorm1d(64),
+            nn.Dropout(self.dropout),
+        )
+        final_layers = [
+            nn.Linear(64, 1) for _ in range(len(self.quantiles))
+        ]
+        self.final_layers = nn.ModuleList(final_layers)
+
+    def init_weights(self):
+        for m in chain(self.base_model, self.final_layers):
+            if isinstance(m, nn.Linear):
+                nn.init.orthogonal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+
     def forward(self, x):
         x = x.unsqueeze(1)
-        h0 = torch.zeros(self.num_layer, x.size(0), self.hidden_layer).to(device)
-        c0 = torch.zeros(self.num_layer, x.size(0), self.hidden_layer).to(device)
-        out, _ = self.lstm(x, (h0, c0))
-        out = self.fc(out[:, -1, :])
+        # h0 = torch.zeros(self.num_layer, x.size(0), self.hidden_layer).to(device)
+        # c0 = torch.zeros(self.num_layer, x.size(0), self.hidden_layer).to(device)
+        # out, _ = self.lstm(x, (h0, c0))
+        # # out = self.fc(out[:, -1, :])
         # out = torch.cat([layer(out[:, -1, :]) for layer in self.fc], dim=1)
-        return out
-        return x
+        # return out
+        tmp_ = self.base_model(x)
+        return torch.cat([layer(tmp_) for layer in self.final_layers], dim=1)
 
     def get_model_descr(self):
         """Creates a string description of a polynomial."""

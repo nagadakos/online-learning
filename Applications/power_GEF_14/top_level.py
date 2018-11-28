@@ -64,7 +64,7 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
 
                    Batch size: Size of batch for data loading  
     '''
-    #------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------LSTM
     # Architecture specifics ------------------------------------------------------
 
     # Model Declaration 
@@ -77,6 +77,7 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # Compute the total num of models. Might be usefull.
     numOfModels = len(lrs)*len(momnts)*len(wDecays)
     outputSize = len(quantiles)
+    # outputSize = 1
     idx = 0
     for l in range(len(lrs)):
         for m in range(len(momnts)):
@@ -153,7 +154,6 @@ def main():
     '''
 
     device  = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    quantiles = [0.9]
 
     # ==========================================================================
     # SECTION A
@@ -163,7 +163,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 20          # must be at least 2 for plot with labellines to work
+    epochs = 40          # must be at least 2 for plot with labellines to work
     batchSize = 700
 
     # Select Architecture here
@@ -172,7 +172,7 @@ def main():
 
     # Loss Function Declaration and parameter definitions go here.
     quantiles = [0.01*i for i in range(1,100)]
-    # quantiles = [0.1,0.5,0.7, 0.9]
+    # quantiles = [0.1, 0.5, 0.9]
     loss = utils.QuantileLoss(quantiles)
     # loss = nn.MSELoss()
     # ---|
@@ -180,7 +180,7 @@ def main():
     # Optimizer Declaration and parameter definitions go here.
     gamma = [0.5, 0.003, 0.01, 0.3]
     momnt = [0.7, 0.2, 0.3, 0.5]
-    wDecay= [0.1, 0.5]
+    wDecay = [0.1, 0.5]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))

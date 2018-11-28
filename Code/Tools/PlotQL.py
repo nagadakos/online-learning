@@ -41,7 +41,7 @@ for month_n in range(2, 16):
     # task_path = base_path + str(month_n)
     task_path = os.path.join(dir_path, "../../Applications/power_GEF_14/Logs/RNNsome/Predictions/PredResults")
 
-    predict_path = os.path.join(task_path, "0.5-0.7-0.1-Task " + str(month_n) + "-predictions-.txt")
+    predict_path = os.path.join(task_path, "0.01-0.7-0.1-Task " + str(month_n) + "-predictions-.txt")
     predict = open(predict_path, 'r')
     p = []
     for values in predict:
