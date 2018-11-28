@@ -52,37 +52,119 @@ def get_cmap(n, name='hsv'):
     '''
     return plt.cm.get_cmap(name, n)
 
-def plot_regressor(filesPath, args, title, labels=[]):
+def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inReps = [], plot = 'All', mode = 'Learning Curves'):
+    
+
+    # Argument Handler
+    # ----------------------
+    # This section checks and sanitized input arguments.
+    if not filesPath and  not inReps:
+        print('No input log path or history lists are given to plot_regressor!!')
+        print('Abort plotting.')
+        return -1
 
     if not isinstance(filesPath, list):
         files = [filesPath]
     else:
         files = filesPath
     reps = []
-    for i,f in enumerate(files):
-        reps.append([[] for i in range(ridx.logSize)])
 
-        # print(i)
-        # print("Size of reps list: {} {}".format(len(reps),len(reps[i])))
-        with open(f, 'r') as p:
-            # print("i is {}".format(i))
-            for j,l in enumerate(p):
-                # Ignore last character from line parser as it is just the '/n' char.
-                report = l[:-2].split(' ')
-                # print(report)
-                reps[i][ridx.trainMAE].append(report[ridx.trainMAE])
-                reps[i][ridx.trainMAPE].append(report[ridx.trainMAPE])
-                reps[i][ridx.trainLoss].append(report[ridx.trainLoss])
-                reps[i][ridx.testMAE].append(report[ridx.testMAE])
-                reps[i][ridx.testMAPE].append(report[ridx.testMAPE])
-                reps[i][ridx.testLoss].append(report[ridx.testLoss])
+    if filesPath:
+        for i,f in enumerate(files):
+            reps.append([[] for i in range(ridx.logSize)])
+            # print(i)
+            # print("Size of reps list: {} {}".format(len(reps),len(reps[i])))
+            with open(f, 'r') as p:
+                # print("i is {}".format(i))
+                for j,l in enumerate(p):
+                    # Ignore last character from line parser as it is just the '/n' char.
+                    report = l[:-2].split(' ')
+                    # print(report)
+                    reps[i][ridx.trainMAE].append(report[ridx.trainMAE])
+                    reps[i][ridx.trainMAPE].append(report[ridx.trainMAPE])
+                    reps[i][ridx.trainLoss].append(report[ridx.trainLoss])
+                    reps[i][ridx.testMAE].append(report[ridx.testMAE])
+                    reps[i][ridx.testMAPE].append(report[ridx.testMAPE])
+                    reps[i][ridx.testLoss].append(report[ridx.testLoss])
 
-            epochs = len(reps[0][0])
+    if inReps:
+        for i,f in enumerate(inReps):
+            reps.append([[] for i in range(ridx.logSize)])
     # print("Plots epochs: {}" .format(epochs))
+
+    epochs = len(reps[0][0])
+    if mode == 'Learning Curves':
+        xLabel = 'Epoch'
+    elif mode == 'Prediction History':
+        xLabel = 'Task'
+
+    if xAxisNumbers is None:
+        epchs = np.arange(1, epochs+1)
+    else:
+        epchs = xAxisNumbers
+    # ---|
     fig = plt.figure(figsize=(19.2,10.8))
     plt.title(title)
     plt.ylabel('Loss')
-    plt.xlabel('Epoch')
+    plt.xlabel(xLabel)
+    # Set a color mat to use for random color generation. Each name is a different
+    # gradient group of colors
+    cmaps= ['Pastel1', 'Pastel2', 'Paired', 'Accent',
+                     'Dark2', 'Set1', 'Set2', 'Set3',
+                     'tab10', 'tab20', 'tab20b', 'tab20c']
+    # Create an iterator for colors, for automated plots.
+    cycol = cycle('bgrcmk')
+    ext_list = []
+    test_loss_list = []
+    markerList = list(markers.MarkerStyle.markers.keys())[:-4] 
+    for i, rep in enumerate(reps):
+        # print(cmap(i))
+        a = np.asarray(rep, dtype = np.float32)
+        # WHen plotting multiple stuff in one command, keyword arguments go last and apply for all
+        # plots.
+        # If labels are given
+        if not labels: 
+            ext = os.path.split(files[i])[1].split('-') 
+            ext = ' '.join(('lr', ext[0],'m',ext[1],'wD',ext[2]))
+        else:
+            ext = labels[i]
+            print(ext)
+        # Select color for the plot
+        cSel = [randint(0, len(cmaps)-1), randint(0, len(cmaps)-1)]
+        c1 = plt.get_cmap(cmaps[cSel[0]])
+        # Solid is Train, dashed is test
+        marker = markerList[randint(0, len(markerList))]
+        if plot == 'All' or plot == 'Train':
+            plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle =
+                 '-', marker=marker, label = ext)
+        # plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+markerList[rndIdx]+'--'), label = ext)
+        if plot == 'All' or plot == 'Test': 
+            plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = '--', marker=marker, label = ext)
+        plt.legend( loc='lower right')
+        ext_list.append(ext)
+        test_loss_list.append(a[ridx.testLoss][-1])
+
+    best_index = np.argmin(np.array(test_loss_list))
+    print("Best test loss is:", str(test_loss_list[best_index]))
+    print("Best parameters are:", ext_list[best_index])
+        # plt.close()
+        # plt.draw()
+        # plt.pause(15)
+    # This will insert legend inline of curves
+    # labelLines(plt.gca().get_lines(),align=False,fontsize=5)
+    return fig
+
+def plot_regressor_from_hist(inReps, title, mode = 'trainHist'):
+   
+    if mode == 'trainHist':
+        xLabel = 'Epoch'
+    elif mode == 'predHist':
+        xLabel = 'Task'
+    reps = inReps
+    fig = plt.figure(figsize=(19.2,10.8))
+    plt.title(title)
+    plt.ylabel('Loss')
+    plt.xlabel(xLabel)
     # Set a color mat to use for random color generation. Each name is a different
     # gradient group of colors
     cmaps= ['Pastel1', 'Pastel2', 'Paired', 'Accent',
@@ -126,8 +208,6 @@ def plot_regressor(filesPath, args, title, labels=[]):
         # plt.close()
         # plt.draw()
         # plt.pause(15)
-    # This will insert legend inline of curves
-    # labelLines(plt.gca().get_lines(),align=False,fontsize=5)
     return fig
 
 #************************************
@@ -166,21 +246,25 @@ def plot_all_in_one(reps, epochs, title):
 
 def main():
     title = 'ANNGREEK Learning Curves Evaluation\n Solid: Train, Dashed: Test'
-    # filePath = "../../Applications/power_GEF_14/Logs/log1.txt"
+    title = 'ANNGREEK Online Benchmark'
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
+    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
-    f = get_files_from_path(filePath, "*log1.txt")
+    # f = get_files_from_path(filePath, "*log1.txt")
+    f = get_files_from_path(filePath, "*results.txt")
     # TODO: get these numbers automatically
-    # print(f)
+    print(f)
     files = []
     for i in f['files']:
         files.append(join(filePath, i)) 
     print(files)
-    labels = ['Trained on ' + str(i+1) for i in range(15)]
-    plot_regressor(files, 1, title, labels = labels)
+    # labels = ['Trained on ' + str(i+1) for i in range(15)]
+    labels = [ 'Offline Model Predictions-trainedOn-last-1-year', 'Online Benchmark']
+    xAxisNumbers = np.arange(2, 16)
+    plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
     plt.savefig("../../Applications/power_GEF_14/Plots/best_learning2.png")
     plt.close()
 

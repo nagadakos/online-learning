@@ -197,7 +197,7 @@ class ANNGreek(nn.Module):
     
     # Testing and error reports are done here
     def predict(self, args, device, testLoader, lossFunction = nn.MSELoss(), saveResults = True,
-                tarFolder = 'Predictions', fileExt = '', saveRootFolder = ''):
+                tarFolder = 'Predictions', fileExt = '', saveRootFolder = '', modelLabel = ''):
         taskLabel = args[2]
         print('Prediction mode  active')
         output, loss, lossMatrix = trainer.test_regressor(self, args, device, testLoader, lossFunction = lossFunction,
@@ -206,15 +206,16 @@ class ANNGreek(nn.Module):
         # Only save the prediction history and the results, not the training history.
         if saveResults == True:
            saveRootFolder = saveRootFolder + '/' if saveRootFolder != '' else saveRootFolder
-           self.save_history(tarFolder = saveRootFolder+tarFolder+'/PredHistoryLogs', fileExt = fileExt,
+           self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', rootFolder = saveRootFolder,fileExt = fileExt,
                              savePredHist = True, saveTrainHist = False) 
-           self.save_history(tarFolder = saveRootFolder + tarFolder+'/PredResults', fileExt =
+           self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder = saveRootFolder, fileExt =
                              fileExt+taskLabel+'-lossMatrix', saveTrainHist = False, saveResults = True, results = lossMatrix) 
-           self.save_history(tarFolder = saveRootFolder+tarFolder+'/PredResults', fileExt =
+           self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder =
+                             saveRootFolder, fileExt =
                              fileExt+taskLabel+'-predictions', saveTrainHist = False, saveResults = True, results = output) 
 
 
-    def plot(self, filePath = None, logPath = None, rootFolder ='',tarFolder = 'PreTrain', fileExt = 'preTrain'):
+    def plot(self, mode = 'Learning Curves', source = 'Logs', filePath = None, logPath = None, rootFolder ='',tarFolder = 'PreTrain', fileExt = 'preTrain'):
         ''' Description: This function is a wrapper for the appropriate plot function
                          Found in the Tools package. It handles any architecture spec
                          cific details, that the general plot function does not, such
@@ -225,15 +226,23 @@ class ANNGreek(nn.Module):
         # In the future. Currently none are implemented.
         args = []
         rootFolder = self.defSavePrefix if rootFolder =='' else rootFolder
-        if logPath is not None:
-            readLog = logPath
-        else:
-            readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, rootFolder, tarFolder+'/'))
-            # readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
-            readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
-        # Form plot title and facilate plotting
-        title = self.descr + " Learning Curve"
-        self.plots[pidx.lrCurve] = plotter.plot_regressor(readLog, args,  title)
+        if source == 'Logs':
+            if logPath is not None:
+                readLog = logPath
+            else:
+                readLog = '/'.join(( self.defSavePath, 'Logs', self.descr, rootFolder, tarFolder+'/'))
+                # readLog = dir_path + "/../../Applications/power_GEF_14/Logs/" + self.descr +'/'
+                readLog += '-'.join((str(self.lr),str(self.momnt), str(self.wDecay), fileExt, "log1.txt"))
+            # Form plot title and facilate plotting
+            title = self.descr + ' '+mode
+            self.plots[pidx.lrCurve] = plotter.plot_regressor(filesPath = readLog, title = title, mode = mode)
+        elif source == 'History':
+            title = self.descr + mode
+            self.plots[pidx.lrCurve] = plotter.plot_regressor(inReps = self.history,
+                                                                        title=title, mode=mode)
+            self.plots[pidx.predCurve] = plotter.plot_regressor(inReps =self.predHistory,
+                                                                          title=title,
+                                                                          mode = 'Prediction History')
 
     # Save plots
     def save_plots(self, savePath = None, titleExt = None, saveRootFolder ='',tarFolder = 'PreTrain'):
@@ -252,8 +261,8 @@ class ANNGreek(nn.Module):
         for i, f in enumerate(self.plots):
             if f is not None:
                 fileExt = "/" + self.descr + "-" + str(i) + '-' + self.defPlotSaveTitle +'-'+ titleExt+ ".png"
-            print("*****\nSaving figure: {} at {}****\n".format(self.descr, savePath + fileExt ))
-            f.savefig(savePath + fileExt)
+                print("*****\nSaving figure: {} at {}****\n".format(self.descr, savePath + fileExt ))
+                f.savefig(savePath + fileExt)
 
     def save(self, savePath = None, titleExt = '', tarFolder = ''):
 

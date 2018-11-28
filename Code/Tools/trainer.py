@@ -198,6 +198,9 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
         print("Predicting on {}".format(args[2]))
         print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
         print("-------")
+        model.predHistory[0].append(0)      # fill with 0, for plotting compatibility
+        model.predHistory[1].append(0)
+        model.predHistory[2].append(0)
         model.predHistory[ridx.predLoss].append(loss)   #get only the loss value
         model.predHistory[ridx.predMAE].append(MAE)
         model.predHistory[ridx.predMAPE].append(MAPE)

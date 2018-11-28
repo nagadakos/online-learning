@@ -38,6 +38,40 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
 
 # End of init_optim
 #-----------------------------------------------------------------------------------------------------
+def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', loadFromEnd = False, reshapeDataTo = None):
+
+    # Task 1 file offset.
+    if loadFromEnd == True:
+        trainDataRange = [85443 - int(preTrainYears * 365.25)*24, 0]
+        testDataRange = trainDataRange
+    else:
+        trainDataRange = [0, 35064 + int(preTrainYears * 365.25)*24] #if trainingScheme['update'] != 'Benchmark' else [0, 90000]
+        testDataRange = [trainDataRange[1], 0]
+    print(trainDataRange)
+
+    trainSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
+                                  "normalize",dataRange= trainDataRange) 
+    valSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
+                                  "normalize",dataRange= testDataRange) 
+
+    # Tell the Loader to bring back shuffled data, use 1 or more worker threads and pin-memory
+    comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
+
+    trainLoader = torch.utils.data.DataLoader(trainSet, batch_size = batchSize, **comArgs)
+    valLoader = torch.utils.data.DataLoader(valSet, batch_size = batchSize, **comArgs)
+
+        # If required return the task loaders for the online schemes.
+    filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
+    taskLoaders = []
+    for i, t in enumerate(filesNum):
+        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), toShape = reshapeDataTo, transform = "normalize",dataRange= testDataRange) 
+        testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
+        taskLoaders.append(testLoader)
+
+    return trainLoader, valLoader, taskLoaders, filesNum
+
+# End of load_data
+#-----------------------------------------------------------------------------------------------------
 
 # def init_online_data(model = None, tasks = "All", device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
 
@@ -103,43 +137,31 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # path has to be relative from the directory of the file OR terminal
     # that calls this specific top level, not the actual location of
     # this top level itself.
-    #
+    dataPath = None
+    # How many years toallocate for pretraining. use loadFromend, to load data from the end towards
+    # the start. This is usefull if you want to load only the later years and thus limit your
+    # available training data.
+    loadFromEnd = True if trainingScheme['update'] == 'Offline' else False
+    preTrainYears = int(trainingScheme['preTrainOn'][0][0]) if trainingScheme['update'] != 'Benchmark' else 5.75
     # Call this function to reshape raw data to match architecture specific inputs.
     # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
     # delimitered by spaces.
-    dataPath = None
-    preTrainYears = int(trainingScheme['preTrainOn'][0][0])
-    # Task 1 file offset.
-    trainDataRange = [0, 35064 + int(preTrainYears * 365.25)*24] if trainingScheme['update'] != 'Benchmark' else [0, 90000]
-    print(trainDataRange)
-    testDataRange = [trainDataRange[1], 0]
-
-    trainSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
-                                  "normalize",dataRange= trainDataRange) 
-    valSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
-                                  "normalize",dataRange= testDataRange) 
-
-    # Tell the Loader to bring back shuffled data, use 1 or more worker threads and pin-memory
-    comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
-
-    trainLoader = torch.utils.data.DataLoader(trainSet, batch_size = batchSize, **comArgs)
-    valLoader = torch.utils.data.DataLoader(valSet, batch_size = batchSize, **comArgs)
-
-        # If required return the task loaders for the online schemes.
-    filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
-    taskLoaders = []
-    for i, t in enumerate(filesNum):
-        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), toShape = reshapeDataTo, transform = "normalize",dataRange= testDataRange) 
-        testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
-        taskLoaders.append(testLoader)
-        print(testSet.tast)
+    #
+    # Will create data loaders for: pretrain, validation, prediction tasks and a list of pred tasks
+    # numbers
+    trainLoader, valLoader, taskLoaders, filesNum = load_data(preTrainYears, loadFromEnd =
+                                                              loadFromEnd, batchSize= batchSize, reshapeDataTo = reshapeDataTo)
 
     # Sanity prints
     print(len(taskLoaders[0].dataset))
-    print(testSet.__getitem__(0))
-
+    # print(testSet.__getitem__(0))
+    
+    # ------------------------------------------------------------------------------    -
+    # SCHEDULER
+    # *********
     # Generate a schedule of training and testing schemes.
-    schedule = dict( trainOn = [], testOn = [], labels =[], testLabels =[])
+    schedule = dict( trainOn = [], testOn = [], predOn = [], labels =[], testLabels =[], predLabels
+                   = [])
     # Benchmark creates a benchmark case for online training.
     # It uses naively, all available data up to a point to train, and 
     # tests on the rest. I.e train on Task1, 2 ,3 and test on task 4: end.
@@ -165,7 +187,25 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
         schedule['testOn'].append([valLoader])
         schedule['labels'].append(['Task 1'])
         schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
-
+    elif trainingScheme['update'] == 'Offline':
+        schedule['trainOn'].append([trainLoader])
+        schedule['testOn'].append([valLoader])
+        trainOrder = 'first' if loadFromEnd == False else 'last'
+        schedule['labels'].append(['-'.join(('Task 1-OffLine-trainedOn',trainOrder, str(preTrainYears)))])
+        schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
+        for i, t in enumerate(filesNum):
+            print(i, t)
+            schedule['predOn'].append([taskLoaders[i]])
+            schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i])])
+    elif trainingScheme['update'] == 'Default':
+        schedule['trainOn'].append([trainLoader])
+        schedule['testOn'].append([valLoader])
+        schedule['labels'].append(['Task 1-Default'])
+        schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
+        for i, t in enumerate(filesNum):
+            print(i, t)
+            schedule['predOn'].append([taskLoaders[i]])
+            schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i])])
     # print(schedule)
     # print(schedule['testOn'])
     # print(schedule['testLabels'])
@@ -222,9 +262,9 @@ def main():
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
-    availSchemes = ['Benchmark', 'ParamEvaluation']
-    scheme = availSchemes[0] # Benchmark, ParamEvaluation
-    trainingScheme= dict(preTrainOn = ["4 Years"], update = scheme)   # monthly, weekly,
+    availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline']
+    scheme = availSchemes[3] # Benchmark, ParamEvaluation
+    trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme)   # set has 5.75 years. Update: monthly, weekly,
                                                                          # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
@@ -262,7 +302,7 @@ def main():
     args = []
     args.append(epochs)
     args.append(batchSize)
-    args.append('Trained up to Task 1')  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
+    args.append(schedule['labels'][0])  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
 
     # List that holds all histories. 
     modelHistories = [modelsList[0].history for i in range(totalModels)]  
@@ -298,11 +338,13 @@ def main():
 
                     # Predictions 
                     # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
-                    # for i, loader in enumerate(tests):
-                        # args[2] = modelTrainInfo +'-tasks-pred-on-'+ testLabels[i]
-                        # print(args[2])
-                        # model.predict(args, device, loader,lossFunction = loss, tarFolder =
-                                      # 'Predictions/'+ modelTrainInfo)
+                    for i, loader in enumerate(schedule['predOn']):
+                        print(schedule['predLabels'][i])
+                        # args[2] = modelTrainInfo +'-tasks-for-'+str(epochs)+'-epochs-pred-on-'+ schedule['predLabels'][i][0]
+                        args[2] = '-'.join((modelTrainInfo,'tasks-for',str(epochs),'epochs-pred-on', schedule['predLabels'][i][0]))
+                        print(args[2])
+                        model.predict(args, device, loader,lossFunction = loss, tarFolder =
+                                      'Predictions/'+ modelTrainInfo, saveRootFolder = scheme)
                     # ---|
 
                     # Report saving and printouts go here
@@ -325,7 +367,7 @@ def main():
         files.append(join(filePath, i)) 
     print("****\nPlotting Evaluation Curves...\n****")
     title = arch +' Learning Curves Evaluation\n Solid: Train, Dashed: Test'
-    plotter.plot_regressor(files, 1, title, labels=evalPlotLabels)
+    plotter.plot_regressor(filesPath = files, title = title, labels=evalPlotLabels)
     # plt.savefig(dir_path + '/Plots/' + arch +'/' + '/eval-plot-'+str(randint(0,20))+'.png')
     plotSavePath = join(dir_path, 'Plots', arch , modelLabel, 'eval-plot-'+str(randint(0,20))+'.png')
     print('Saving {} evaluation plots at: {}'.format(scheme, plotSavePath))

@@ -3,7 +3,7 @@
 # This detrsmines the number of columns in the history attribute of each 
 # reggression model
 logSize     = 6
-predLogSize = 3
+predLogSize = 6  # fill with zeros first 3 cols for plotting compatibility
 
 # Train phase metrics
 trainMAE  = 0
@@ -16,6 +16,6 @@ testMAPE  = 4
 testLoss  = 5
 
 # Prediction phase metrics
-predMAE  = 0
-predMAPE = 1
-predLoss= 2
+predMAE  = 3
+predMAPE = 4
+predLoss = 5
