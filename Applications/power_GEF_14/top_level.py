@@ -179,7 +179,7 @@ def main():
 
     # Optimizer Declaration and parameter definitions go here.
     gamma = [0.5, 0.003, 0.01, 0.3]
-    momnt = [0.7, 0.2, 0.3, 0.5]
+    momnt = [0]
     wDecay = [0.1, 0.5]
     optimName = "SGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
