@@ -98,10 +98,6 @@ class ANNGreek(nn.Module):
 
     def forward(self, x): 
 
-        # x = F.softmax(self.linear(x), dim=1) 
-        # x = F.softmax(self.linear2(x), dim=0) 
-        # x = F.relu(self.linear(x)) 
-        # x = F.relu(self.linear2(x)) 
         x = F.elu(self.linear(x)) 
         x = F.elu(self.linear2(x)) 
 
@@ -115,16 +111,6 @@ class ANNGreek(nn.Module):
                 model += '{}{:.2f} x{} '.format(sign(w), w, modelSize - i)
         model += '{:+.2f}'.format(self.linear.bias.data[0])
         return model   
-
-    def shape_input(self, x, label):
-        '''
-            Shape unput data x to: 
-                0-23 : Hourly load of last day
-                24-27: Max and min temp of 2 weather station
-                30-33: Bit encoding for day
-        '''
-         
-        return x
 
     def save_history(self, filePath = None, rootFolder = '',  tarFolder = 'tempLogs', fileExt = '', savePredHist =
                     False, saveTrainHist = True, saveResults = False, results = None):
@@ -305,7 +291,15 @@ class ANNGreek(nn.Module):
             print(list(self.parameters()))
 
     def create_copy(self, device, returnDataShape = 0):
-           
+        ''' Description: This function will create a ne deep copy of this model.
+            
+            Arguments:  device:          Where the model is instantiated, GPu or CPU
+                        returnDataShape: Flag of whether a return string is required for raw data
+                                         reshaping 
+                        
+            returns:    model: A model object, with all the parameters of the initial one, deep-copied. 
+        '''
+                
         state_clone = copy.deepcopy(self.state_dict())
         model = ANNGreek(59, self.linear2.out_features, lr = self.lr, momnt=self.momnt,
                          wDecay=self.wDecay).to(device)

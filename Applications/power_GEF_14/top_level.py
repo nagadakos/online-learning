@@ -15,7 +15,7 @@ tools_path = os.path.join(dir_path, "../../Code/")
 sys.path.insert(0, tools_path)
 
 
-from  Solvers import sgd
+from  Solvers import sgd, time_smoothed_sgd
 from Datasets import GEF_Power
 from Architecture import MLR, ann_forward, ann_greek
 from Tools import trainer,plotter,utils
@@ -24,12 +24,23 @@ from Tools import trainer,plotter,utils
 # Start of Functions
 # ================================================================================================================
 
-def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9))):
+def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9, w =1))):
+    ''' Description: This function initializes an optimizer obect according to input parameters.
+        
+        Arguments: 1.modelParams(PyTorch params) The model parameters iterator to be optimized.
+                   2. optimParams(dict):    Dictionary with args. Name = Name of solver. Params = dict of optimizer mathematical 
+                                            parameters such as learning rate.
+        Returns:    optimTemplate: An solver object with the required parameters and ready to optimize the given moel's params.
 
+    '''
     # Initialize the optimizer Template with the parameters of
     if optimParams["name"] == "SGD":
         optimTemplate = sgd.SGD(modelParams, weight_decay = optimParams["params"]["wDecay"][0],
                                 lr=optimParams["params"]["lr"][0], momentum=optimParams["params"]["momnt"][0])
+    elif optimParams["name"] == "TSSGD":
+        optimTemplate = time_smoothed_sgd.TSSGD(modelParams, weight_decay = optimParams["params"]["wDecay"][0],
+                                lr=optimParams["params"]["lr"][0], momentum=optimParams["params"]["momnt"][0],
+                                                w=optimParams["params"]["w"][0])
     else:
         optimTemplate = sgd.SGD(modelParams, weight_decay = optimParams["params"]["wDecay"][0],
                                 lr=optimParams["params"]["lr"][0], momentum=optimParams["params"]["momnt"][0])
@@ -39,7 +50,24 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
 # End of init_optim
 #-----------------------------------------------------------------------------------------------------
 def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', loadFromEnd = False, reshapeDataTo = None):
+    ''' Description: This function will handle the creation of dataloaders for the scheduler to arrange into valid training
+                     schedules. Trainloader and ValLoader are in all cases used for the preTrain part of the process. Task
+                     loaders are  the dataset files to be used for prediction and online learning.
 
+        Arguments:  1. preTrainYears(int): The number of years of data to be used for preTrain.
+                    2. dataPath(filePath): The file path of the data set, if it resides outside the default location.
+                    3. batchSize(int):     Batchsize for data loading.
+                    4. tasks(list(int)):   A list of ints indigating which specific tasks to load. Default is All.
+                    5. loadFromEnd(Bool):  Flag for load start point. False means start loading from
+                                           start of original dataset. True meansstart loading data from the end towards the
+                                           start.
+                    6. reshapeDataTo(str): A string used to tell the dataloader class to reshape the data according to the
+                                           requirements of each architecture. Should be defined in the Dataset class first.
+        Returns:    trainLoader(dataLoader) A dataloader object that contains the preTrain data.
+                    ValLoader:              A dataload object that contains preTrain validation data.
+                    TaskLoaders:            Dataloader Object that contains the Task data.hasattr
+                    filesNum:               A list of ints, containing the loaded task files numbers (i.e 2 for Task 2 etc)
+    '''
     # Task 1 file offset.
     if loadFromEnd == True:
         trainDataRange = [85443 - int(preTrainYears * 365.25)*24, 0]
@@ -73,21 +101,9 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
 # End of load_data
 #-----------------------------------------------------------------------------------------------------
 
-# def init_online_data(model = None, tasks = "All", device = "cpu", trainDataRange = [0, 76799], testDataRange = [76800, 0], batchSize = 1000):
-
-
-    # comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
-    # filesNum = tasks if tasks is not "ALL" else [1 for i in range(2,15)]
-    # taskLoaders = []
-    # dataPath = None
-    # for i, t in enumerate(filesNum):
-        # testSet = GEF_Power.GefPower(dataPath, task ='Task ' +t, toShape = model, transform = "normalize",dataRange= testDataRange) 
-        # testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
-        # taskLoaders.append(testLoader)
-    # return taskLoaders
-
 def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9)),
-         quantiles = [0.9], device = "cpu", trainingScheme =dict(preTrainOn = ['5 Years'] , update ='Benchmark') , batchSize = 1000):
+         quantiles = [0.9], device = "cpu", trainingScheme =dict(preTrainOn = ['5 Years'] , update
+                                                                 ='Benchmark', loadFromEnd= False) , batchSize = 1000):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -141,8 +157,9 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # How many years toallocate for pretraining. use loadFromend, to load data from the end towards
     # the start. This is usefull if you want to load only the later years and thus limit your
     # available training data.
-    loadFromEnd = True if trainingScheme['update'] == 'Offline' else False
-    preTrainYears = int(trainingScheme['preTrainOn'][0][0]) if trainingScheme['update'] != 'Benchmark' else 5.75
+    loadFromEnd = trainingScheme['loadFromEnd']
+    # preTrainYears = int(trainingScheme['preTrainOn'][0][0]) if trainingScheme['update'] != 'Benchmark' else 5.75
+    preTrainYears = int(trainingScheme['preTrainOn'][0][0]) 
     # Call this function to reshape raw data to match architecture specific inputs.
     # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
     # delimitered by spaces.
@@ -167,10 +184,13 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # tests on the rest. I.e train on Task1, 2 ,3 and test on task 4: end.
     # The trainset start from Task 1, Task 1 + val, Task 1 + val + Task 2...
     # The test set Val + Task loaders, Taskloaders, TaskLoaders[2:end] ...
+    # The predSet has to be a list of lists. It can have just one list.
     if trainingScheme['update'] == 'Benchmark':
         schedule['trainOn'].append([trainLoader])
-        schedule['testOn'].append([taskLoaders[0]])
+        schedule['testOn'].append([valLoader])
         schedule['labels'].append(['Task 1'])
+        schedule['predOn'].append([taskLoaders[0]])
+        schedule['predLabels'].append(['Pred on Task ' + str(filesNum[0])])
         schedule['testLabels'].append(['Task ' + str(filesNum[0])])
         for i, t in enumerate(filesNum[:-1]):
             print(i, t)
@@ -182,6 +202,23 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
             schedule['testOn'].append([taskLoaders[i+1]])
             schedule['labels'].append(prevLabels)
             schedule['testLabels'].append(['Task ' + str(filesNum[i+1])])
+            schedule['predOn'].append([taskLoaders[i+1]])
+            schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
+    elif trainingScheme['update'] == 'Online':
+        schedule['trainOn'].append([trainLoader])
+        schedule['testOn'].append([valLoader])
+        schedule['labels'].append(['Task 1'])
+        schedule['testLabels'].append(['Task ' + str(filesNum[0])])
+        schedule['predOn'].append([taskLoaders[0]])
+        schedule['predLabels'].append(['Pred on Task ' + str(filesNum[0])])
+        for i, t in enumerate(filesNum[:-1]):
+            print(i, t)
+            schedule['trainOn'].append(taskLoaders[i])
+            schedule['testOn'].append([taskLoaders[i+1]])
+            schedule['labels'].append(['Trained-up-to-task-' + str(i)])
+            schedule['testLabels'].append(['Task-' + str(filesNum[i+1])])
+            schedule['predOn'].append([taskLoaders[i+1]])
+            schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
     elif trainingScheme['update'] == 'ParamEvaluation':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -193,22 +230,27 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
         trainOrder = 'first' if loadFromEnd == False else 'last'
         schedule['labels'].append(['-'.join(('Task 1-OffLine-trainedOn',trainOrder, str(preTrainYears)))])
         schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
+        # Only one pred task. just provide a results for each one of the tasks.
+        schedule['predOn'].append(taskLoaders)
         for i, t in enumerate(filesNum):
             print(i, t)
-            schedule['predOn'].append([taskLoaders[i]])
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i])])
     elif trainingScheme['update'] == 'Default':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
         schedule['labels'].append(['Task 1-Default'])
         schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
+        schedule['predOn'].append([taskLoaders])
+        labels = []
         for i, t in enumerate(filesNum):
             print(i, t)
-            schedule['predOn'].append([taskLoaders[i]])
-            schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i])])
+            labels.append(['Pred on Task ' + str(filesNum[i])])
+        schedule['predLabels'].append(labels)
     # print(schedule)
     # print(schedule['testOn'])
     # print(schedule['testLabels'])
+    print(schedule['predOn'])
+    print(schedule['predLabels'])
     # ---|
     return models, optimTemplate, trainLoader, valLoader, taskLoaders, schedule
 
@@ -252,19 +294,23 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.5]#, 0.9]
-    momnt = [0.1]#, 0.5]
-    wDecay= [0.01]
-    optimName = "SGD"
+    gamma = [0.5]#, 0.9] # learning rate
+    momnt = [0.0]#, 0.5] # momentum
+    wDecay= [0.00]       # weight decay (l2 normalization)   
+    window= [5]          # window size for time smoothed variants
+    optimName = "TSSGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
-    optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay))
+    optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window))
+    TSSGDOptimParams = dict(name = "TSSGD", params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w =window))
     # ---|
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
-    availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline']
+    availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline', 'Online']
     scheme = availSchemes[3] # Benchmark, ParamEvaluation
-    trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme)   # set has 5.75 years. Update: monthly, weekly,
+    # set has 5.75 years. Update: monthly, weekly. Load from end tells loader to load data from the
+    # last years to the first.
+    trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme, loadFromEnd = True)   
                                                                          # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
@@ -313,46 +359,50 @@ def main():
     # TODO: Define validation, simple use and benchmark routines on top level.
     for l in range(len(gamma)):
         for m in range(len(momnt)):
-            for w in range(len(wDecay)):
-                for trainLoaders, tests, testLabels in zip(schedule['trainOn'], schedule['testOn'],
-                                                          schedule['testLabels']):
+            for wD in range(len(wDecay)):
+                for wi in range(len(window)):
                     # Use model in target position at a template
                     model = modelsList[idx].create_copy(device)
                     print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
-                                                                      wDecay[w]))
-                    # print(trainLoaders, tests)
-                    print(len(trainLoaders), len(tests))
-                    modelTrainInfo = 'Trained-on-'+ str(len(trainLoaders))
-
+                                                                          wDecay[wD]))
                     # Instantiate solver according to input params
-                    optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
-                                                                       wDecay=[wDecay[w]]))
+                    optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]], wDecay=[wDecay[wD]], w =
+                                                                       [window[wi]]))
                     optim = init_optim(model.parameters(), optimParams)
 
-                    # Invoke training an Evaluation
-                    model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True,
-                                savePlot = True, modelLabel = modelTrainInfo, shuffleTrainLoaders =
-                               True, saveRootFolder =scheme)
-                    model.save(titleExt= '-trainedFor-'+str(epochs))
-                    # ---|
+                    for sIdx, (trainLoaders, tests, testLabels) in enumerate(zip(schedule['trainOn'], schedule['testOn'],
+                                                              schedule['testLabels'])):
+                        # print(trainLoaders, tests)
+                        # print(len(trainLoaders), len(tests))
+                        modelTrainInfo = 'Trained-on-'+ str(len(trainLoaders))
+                        
+                        # Invoke training an Evaluation
+                        model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = True, modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme)
+                        model.save(titleExt= '-trainedFor-'+str(epochs))
+                        # ---|
 
-                    # Predictions 
-                    # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
-                    for i, loader in enumerate(schedule['predOn']):
-                        print(schedule['predLabels'][i])
-                        # args[2] = modelTrainInfo +'-tasks-for-'+str(epochs)+'-epochs-pred-on-'+ schedule['predLabels'][i][0]
-                        args[2] = '-'.join((modelTrainInfo,'tasks-for',str(epochs),'epochs-pred-on', schedule['predLabels'][i][0]))
-                        print(args[2])
-                        model.predict(args, device, loader,lossFunction = loss, tarFolder =
-                                      'Predictions/'+ modelTrainInfo, saveRootFolder = scheme)
-                    # ---|
+                        # Predictions 
+                        # NOTE: This evaluates the pretrained model on the selected tasks. Not yet online.
+                        for i, loader in enumerate(schedule['predOn'][sIdx]):
+                            print(schedule['predLabels'][sIdx])
+                            # args[2] = modelTrainInfo +'-tasks-for-'+str(epochs)+'-epochs-pred-on-'+ schedule['predLabels'][i][0]
+                            args[2] = '-'.join((modelTrainInfo,'tasks-for',str(epochs),'epochs-pred-on',
+                                                schedule['predLabels'][sIdx][0]))
+                            print(args[2])
+                            model.predict(args, device, loader,lossFunction = loss, tarFolder =
+                                          'Predictions/'+ modelTrainInfo, saveRootFolder = scheme)
+                        # ---|
 
-                    # Report saving and printouts go here
-                    # print("Training history:")
-                    # print(model.history)
-                    modelHistories[idx] = model.history
-                    args[2] = 'Train up to ' + testLabels[-1]  
-                    evalPlotLabels.append(args[2])
+                        # Report saving and printouts go here
+                        # print("Training history:")
+                        # print(model.history)
+                        modelHistories[idx] = model.history
+                        args[2] = 'Train up to ' + testLabels[-1]  
+                        evalPlotLabels.append(args[2])
+                        # Benchmark case needs to be retrained from scratch every time.
+                        if trainingScheme['update'] == 'Benchmark':
+                            model = modelsList[idx].create_copy(device)
+                            optim = init_optim(model.parameters(), optimParams)
                 idx += 1
     # ---|
     # modelLabel = "0.5-0.7-0.1"

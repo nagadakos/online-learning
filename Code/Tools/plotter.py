@@ -54,7 +54,18 @@ def get_cmap(n, name='hsv'):
 
 def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inReps = [], plot = 'All', mode = 'Learning Curves'):
     
+    ''' Description: This function will plot Learning or Prediciton curves, as supplied from either txt log files, or a list of
+                     histories, or both. It returns a figure, containg all the curves; one curve for each history provided.
 
+        Arguments:  filesPath(filePath): A file path to the folder containing the required log txt files.
+                    title(String):       Title to the figure
+                    xAxisNumbers(List):  A list of lalbel strings to be used as x axis annotations.
+                    labels(List):        A list of strings to be used as curve labels.
+                    inReps(List):        A list of model histories in the format train-loss MAE MAPE test-MAE MAPE loss.
+                    plot (selector)      A string command  not yet offering functionality
+                    mode(Selector):      A string command telling the function to plot Learning curves or simple prediction loss.
+        Returns:    fig:     A figure object containg the plots.
+    '''
     # Argument Handler
     # ----------------------
     # This section checks and sanitized input arguments.
@@ -88,8 +99,9 @@ def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inR
                     reps[i][ridx.testLoss].append(report[ridx.testLoss])
 
     if inReps:
-        for i,f in enumerate(inReps):
-            reps.append([[] for i in range(ridx.logSize)])
+        for i,r in enumerate(inReps):
+            # reps.append([[] for i in range(ridx.logSize)])
+            reps.append(r)
     # print("Plots epochs: {}" .format(epochs))
 
     epochs = len(reps[0][0])
@@ -103,6 +115,7 @@ def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inR
     else:
         epchs = xAxisNumbers
     # ---|
+
     fig = plt.figure(figsize=(19.2,10.8))
     plt.title(title)
     plt.ylabel('Loss')
@@ -150,66 +163,12 @@ def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inR
         # plt.close()
         # plt.draw()
         # plt.pause(15)
-    # This will insert legend inline of curves
-    # labelLines(plt.gca().get_lines(),align=False,fontsize=5)
+
     return fig
+# ----------------------------------------------------------------------------------------------------
 
-def plot_regressor_from_hist(inReps, title, mode = 'trainHist'):
-   
-    if mode == 'trainHist':
-        xLabel = 'Epoch'
-    elif mode == 'predHist':
-        xLabel = 'Task'
-    reps = inReps
-    fig = plt.figure(figsize=(19.2,10.8))
-    plt.title(title)
-    plt.ylabel('Loss')
-    plt.xlabel(xLabel)
-    # Set a color mat to use for random color generation. Each name is a different
-    # gradient group of colors
-    cmaps= ['Pastel1', 'Pastel2', 'Paired', 'Accent',
-                     'Dark2', 'Set1', 'Set2', 'Set3',
-                     'tab10', 'tab20', 'tab20b', 'tab20c']
-    # Create an iterator for colors, for automated plots.
-    cycol = cycle('bgrcmk')
-    ext_list = []
-    test_loss_list = []
-    markerList = list(markers.MarkerStyle.markers.keys())[:-4] 
-    print(markerList)
-    for i, rep in enumerate(reps):
-        # print(cmap(i))
-        a = np.asarray(rep, dtype = np.float32)
-        epchs = np.arange(1, epochs+1)
-        # WHen plotting multiple stuff in one command, keyword arguments go last and apply for all
-        # plots.
-        # If labels are given
-        if not labels: 
-            ext = os.path.split(files[i])[1].split('-') 
-            ext = ' '.join(('lr', ext[0],'m',ext[1],'wD',ext[2]))
-        else:
-            ext = labels[i]
-            print(ext)
-        # Select color for the plot
-        cSel = [randint(0, len(cmaps)-1), randint(0, len(cmaps)-1)]
-        c1 = plt.get_cmap(cmaps[cSel[0]])
-        # Solid is Train, dashed is test
-        marker = markerList[randint(0, len(markerList))]
-        plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle =
-                 '-', marker=marker, label = ext)
-        # plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+markerList[rndIdx]+'--'), label = ext)
-        plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = '--', marker=marker, label = ext)
-        plt.legend( loc='lower right')
-        ext_list.append(ext)
-        test_loss_list.append(a[ridx.testLoss][-1])
-
-    best_index = np.argmin(np.array(test_loss_list))
-    print("Best test loss is:", str(test_loss_list[best_index]))
-    print("Best parameters are:", ext_list[best_index])
-        # plt.close()
-        # plt.draw()
-        # plt.pause(15)
-    return fig
-
+def plot_prediction_loss(inReps, title, mode = 'trainHist'):
+  print("hi") 
 #************************************
 #Function: Plot Accuracy
 #Description:   This function will plot the accuracy curve of 2 statistics
@@ -220,7 +179,7 @@ def plot_regressor_from_hist(inReps, title, mode = 'trainHist'):
 #               epochs: int. Number of epochs
 #               title:  string, used to anotate the plot figure.
 #***********************************
-def plot_acc( rep1, rep2, epochs, title):
+def plot_acc(rep1, rep2, epochs, title):
    
     a = np.asarray(rep1, dtype = np.float32)
     b = np.asarray(rep2, dtype = np.float32)
@@ -239,14 +198,12 @@ def plot_acc( rep1, rep2, epochs, title):
     # plt.draw()
     # plt.pause(10)
 
-# TODO: This Function will plot all reports on the same figure!
-def plot_all_in_one(reps, epochs, title):
-
-    print("Hellos")
-
+#--------------------------------------------------------------------------------------------------------
+#
+#--------------------------------------------------------------------------------------------------------
 def main():
-    title = 'ANNGREEK Learning Curves Evaluation\n Solid: Train, Dashed: Test'
-    title = 'ANNGREEK Online Benchmark'
+    # title = 'ANNGREEK Learning Curves Evaluation\n Solid: Train, Dashed: Test'
+    title = 'ANNGREEK Update Scheme Evaluation Plots'
     filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
@@ -258,14 +215,16 @@ def main():
     # TODO: get these numbers automatically
     print(f)
     files = []
+    labels = []
     for i in f['files']:
         files.append(join(filePath, i)) 
+        labels.append(i.rsplit('.',1)[0])
     print(files)
+    print(labels)
     # labels = ['Trained on ' + str(i+1) for i in range(15)]
-    labels = [ 'Offline Model Predictions-trainedOn-last-1-year', 'Online Benchmark']
     xAxisNumbers = np.arange(2, 16)
     plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
-    plt.savefig("../../Applications/power_GEF_14/Plots/best_learning2.png")
+    plt.savefig("../../Applications/power_GEF_14/Plots/"+title+".png")
     plt.close()
 
   

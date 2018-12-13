@@ -438,23 +438,30 @@ def get_files_from_path(targetPath, expression):
         # print(folder, files)
     return contents
 
+def comp_benchmark_loss():
+    loss = 0
+    contents = get_files_from_path(dir_path + "/../../Data/GEF/Load", "*benchmark*")
+    print(contents)
+
+    return loss 
 #-----------------------------------------------------------------------------------------------------------------------
 #  main function definition. Used to debug.
 #-----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
-    print(" GEF Power Dataset as Main ")
-    myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
-                         dataRange=[0, 76799])
+    # print(" GEF Power Dataset as Main ")
+    # myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
+                         # dataRange=[0, 76799])
 
-    myDataset2 = GefPower(task = "Task 1", transform = "normalize",
-                         dataRange= [90000,0])
+    # myDataset2 = GefPower(task = "Task 1", transform = "normalize",
+                         # dataRange= [90000,0])
 
     # print(myDataset)
     # myDataset.get_data_descr()
-    print(myDataset.__getitem__(1))
+    # print(myDataset.__getitem__(1))
     # print(myDataset.__len__())
-    print(myDataset2.__len__())
+    # print(myDataset2.__len__())
     # item, label  = myDataset2.__getitem__(3)
     # print(item, label)
-    print("Size of an instance {}".format(myDataset.get_item_size()))
+    # print("Size of an instance {}".format(myDataset.get_item_size()))
+    comp_benchmark_loss()
