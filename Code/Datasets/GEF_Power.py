@@ -10,6 +10,7 @@ import os
 from os import listdir
 from pathlib import Path
 from os.path import isdir, join
+import collections
 import re
 import torch
 import pandas as pd
@@ -22,6 +23,12 @@ from datetime import datetime,timedelta
 from sklearn.preprocessing import LabelBinarizer
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
+tools_path = os.path.join(dir_path, "../../Code/")
+import sys
+sys.path.insert(0, tools_path)
+
+from Tools import utils
 
 class GefPower(Dataset):
     def __init__(self, csvPath = None, task = "Task 1", toShape = None, transform = None, dataRange = [0, 0], trainMode =1):
@@ -440,9 +447,51 @@ def get_files_from_path(targetPath, expression):
 
 def comp_benchmark_loss():
     loss = 0
-    contents = get_files_from_path(dir_path + "/../../Data/GEF/Load", "*benchmark*")
-    print(contents)
+    filepath ="../../Data/GEF/Load"
+    contents = get_files_from_path("/".join((dir_path, filepath)), "*benchmark*")
+    truth = get_files_from_path("/".join((dir_path, filepath)), "*train.csv")
+    
+    contents = collections.OrderedDict(sorted(contents.items()))
+    truth = list(truth.values())
+    print(truth, contents)
+    for i, (t,f)in enumerate(contents.items()):
+        # with open("/".join((filepath,t,f)), 'r'):
+        fi = "/".join((filepath,t,f[0]))
+        # print(fi)
+        data = pd.read_csv(fi)
+        data = np.asarray(data.iloc[:,2:])
+        # print(data)
+        # print(f, t)
+        gTruth = np.asarray(pd.read_csv("/".join((filepath,t,truth[i][0]))).iloc[:,2])
+        gTruth= np.reshape(gTruth, (gTruth.shape[0],1))
+        print(data.shape)
+        print(gTruth.shape)
+        print("---")
 
+def comp_benchmark_loss_manual(t,f, gT,gF):
+    loss = 0
+    filepath ="../../Data/GEF/Load"
+    quantiles = [0.01*i for i in range(1,100)]
+
+    lossFuntion = utils.QuantileLoss(quantiles)
+        # with open("/".join((filepath,t,f)), 'r'):
+    fi = "/".join((filepath,t,f))
+        # print(fi)
+    data = pd.read_csv(fi)
+    data = np.asarray(data.iloc[:,2:])
+        # print(data)
+        # print(f, t)
+    gTruth = np.asarray(pd.read_csv("/".join((filepath,gT, gF))).iloc[:,2])
+    gTruth= np.reshape(gTruth, (gTruth.shape[0],1))
+    # print(data.shape)
+    # print(gTruth.shape)
+    # print("---")
+    
+
+    data = torch.from_numpy(data).float()
+    gTruth = torch.from_numpy(gTruth).float()
+    loss, l = lossFuntion.forward(data, gTruth)
+    print(loss.item())
     return loss 
 #-----------------------------------------------------------------------------------------------------------------------
 #  main function definition. Used to debug.
@@ -464,4 +513,11 @@ if __name__ == "__main__":
     # item, label  = myDataset2.__getitem__(3)
     # print(item, label)
     # print("Size of an instance {}".format(myDataset.get_item_size()))
-    comp_benchmark_loss()
+    loss = np.zeros((14,6))
+    for n in range(1,15):
+        t = "Task "+ str(n)
+        f = "L"+ str(n)+"-benchmark.csv"
+        gT = "Task "+ str(n+1)
+        gF = "L"+ str(n+1)+"-train.csv"
+        loss[n-1,5] = comp_benchmark_loss_manual(t,f,gT,gF)
+    np.savetxt("provided_benchmark.txt", loss, fmt = '%.3f')

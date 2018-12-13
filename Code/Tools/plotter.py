@@ -152,7 +152,9 @@ def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inR
                  '-', marker=marker, label = ext)
         # plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+markerList[rndIdx]+'--'), label = ext)
         if plot == 'All' or plot == 'Test': 
-            plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = '--', marker=marker, label = ext)
+            linestyle = "-" if "no" in ext else "--"
+            linestyle = ":" if "provided" in ext else linestyle 
+            plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = linestyle, marker=marker, label = ext)
         plt.legend( loc='lower right')
         ext_list.append(ext)
         test_loss_list.append(a[ridx.testLoss][-1])

@@ -117,6 +117,7 @@ class TSSGD(Optimizer):
             momentum = group['momentum']
             dampening = group['dampening']
             nesterov = group['nesterov']
+            w = group['w']
 
             for p in group['params']:
                 if p.grad is None:
@@ -136,7 +137,9 @@ class TSSGD(Optimizer):
                         d_p = d_p.add(momentum, buf)
                     else:
                         d_p = buf
-
+                # Need to log the computed gradient at each step, so we can use it to smooth out the
+                # SGD jumps in the following fashion x_t+1 = x_t - (lr / w) * SUM_0-w { grad(x_t) }
+                self.history.append(d_p)
                 p.data.add_(-group['lr'], d_p)
 
         return loss
