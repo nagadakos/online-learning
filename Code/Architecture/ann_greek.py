@@ -147,14 +147,15 @@ class ANNGreek(nn.Module):
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction =
               nn.MSELoss(),saveHistory = False, savePlot = False, modelLabel ='', saveRootFolder='',
-             shuffleTrainLoaders = False):
+             shuffleTrainLoaders = False, adaptDurationTrain = False, epsilon = 0.1):
 
         epochs = args[0]
         # Create deep copies of the arguments, might be required to the change. 
         trainerArgs = args.copy()
         testerArgs = args.copy()
         testerArgs[1] *= 4 
-
+        l_t = 0
+        l_t_1 = 0
         # Make sure given train loader is a list
         if not isinstance(trainLoader, list):
             trainLoader = [trainLoader]
@@ -168,7 +169,13 @@ class ANNGreek(nn.Module):
             trainerArgs[0] = e 
             testerArgs[0] = e 
             trainer.train_regressor(self, trainerArgs, device, trainLoader, optim, lossFunction = lossFunction)
-            trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
+            p,l_t,lM = trainer.test_regressor(self, testerArgs, device, testLoader, lossFunction = lossFunction, trainMode= True)
+            # If adaptive duration for training is enabled, then break training process if progress
+            # in loss is less than epsilon. Should be expanded in average over past few epochs.
+            if adaptDurationTrain == True:
+                print("Model {} has made no progress in past 2 iters. Discontinuing training".format(self.defPlotSaveTitle))
+                if abs(l_t - l_t_1) < epsilon and e > 5:
+                    break
         # If saving history and plots is required.
         fileExt = modelLabel + "-preTrain-for-"+str(epochs)+'-epchs'
         if saveHistory == True:

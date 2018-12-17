@@ -222,8 +222,10 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     elif trainingScheme['update'] == 'ParamEvaluation':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
-        schedule['labels'].append(['Task 1'])
+        trainOrder = 'first' if loadFromEnd == False else 'last'
+        schedule['labels'].append(['-'.join(('param-eval-trainedOn',trainOrder, str(preTrainYears)))])
         schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
+        schedule['predOn'].append([])
     elif trainingScheme['update'] == 'Offline':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -279,7 +281,7 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 15         # must be at least 2 for plot with labellines to work
+    epochs = 100         # must be at least 2 for plot with labellines to work
     batchSize = 1000
 
     # Select Architecture here
@@ -294,9 +296,9 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.5]#, 0.9] # learning rate
+    gamma = [0.001, 0.01, 0.05, 0.1,0.3,0.5]#, 0.9] # learning rate
     momnt = [0.0]#, 0.5] # momentum
-    wDecay= [0.00]       # weight decay (l2 normalization)   
+    wDecay= [0.001,0.01, 0.1, 0.01, 0.1, 0.5]       # weight decay (l2 normalization)   
     window= [5]          # window size for time smoothed variants
     optimName = "TSSGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
@@ -307,7 +309,7 @@ def main():
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
     availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline', 'Online']
-    scheme = availSchemes[3] # Benchmark, ParamEvaluation
+    scheme = availSchemes[1] # Benchmark, ParamEvaluation
     # set has 5.75 years. Update: monthly, weekly. Load from end tells loader to load data from the
     # last years to the first.
     trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme, loadFromEnd = True)   
@@ -377,7 +379,7 @@ def main():
                         modelTrainInfo = 'Trained-on-'+ str(len(trainLoaders))
                         
                         # Invoke training an Evaluation
-                        model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = True, modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme)
+                        model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = False, modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme)
                         model.save(titleExt= '-trainedFor-'+str(epochs))
                         # ---|
 

@@ -204,28 +204,30 @@ def plot_acc(rep1, rep2, epochs, title):
 #
 #--------------------------------------------------------------------------------------------------------
 def main():
-    # title = 'ANNGREEK Learning Curves Evaluation\n Solid: Train, Dashed: Test'
-    title = 'ANNGREEK Update Scheme Evaluation Plots'
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
-    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/First_logs_200_epochs"
+    title = 'ANNGREEK Learning Curves Evaluation Solid: Train, Dashed: Test'
+    # title = 'ANNGREEK Update Scheme Evaluation Plots'
+    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
-    # f = get_files_from_path(filePath, "*log1.txt")
-    f = get_files_from_path(filePath, "*results.txt")
+    f = get_files_from_path(filePath, "*log1.txt")
+    # f = get_files_from_path(filePath, "*results.txt")
     # TODO: get these numbers automatically
-    print(f)
+    # print(f)
     files = []
     labels = []
     for i in f['files']:
         files.append(join(filePath, i)) 
         labels.append(i.rsplit('.',1)[0])
-    print(files)
+    # print(files)
     print(labels)
-    # labels = ['Trained on ' + str(i+1) for i in range(15)]
-    xAxisNumbers = np.arange(2, 16)
-    plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
+    print(len(files), len(labels))
+    
+    # NOTE: Change this number to match the training epochs
+    xAxisNumbers = np.arange(1, 101)
+    plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'All', mode = 'Prediction History' )
     plt.savefig("../../Applications/power_GEF_14/Plots/"+title+".png")
     plt.close()
 

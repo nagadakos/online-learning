@@ -156,7 +156,7 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
         model.history[ridx.testLoss].append(loss)   #get only the loss value
         model.history[ridx.testMAE].append(MAE)
         model.history[ridx.testMAPE].append(MAPE)
-
+        
     if trainMode == False:
         print("Predicting on {}".format(args[2]))
         print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
@@ -168,7 +168,7 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
         model.predHistory[ridx.predMAE].append(MAE)
         model.predHistory[ridx.predMAPE].append(MAPE)
 
-        return pred, loss, lossMatrix
+    return pred, loss, lossMatrix
 
 # End of train Regressor 
 # ---------------------------------------------------------------------------------------_
