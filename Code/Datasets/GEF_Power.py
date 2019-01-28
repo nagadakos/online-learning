@@ -20,7 +20,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 # from dateutil.parser import parse
 from datetime import datetime,timedelta
-from sklearn.preprocessing import LabelBinarizer
+# from sklearn.preprocessing import LabelBinarizer
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -392,7 +392,7 @@ class GefPower(Dataset):
         print("Filesize: {}, fileofset: {}".format(fileSize, self.offset))
         # Check for line read range validity. If UB < LB, reverse them, unless UB = 0.
         # UB = 0, means read the whole file from LB to end.
-        if dataRange[1] < dataRange[0] :
+        if dataRange[1] <= dataRange[0] :
            if dataRange[1] != 0:
                print("Data Range provided in invalid. Upper bound {} is smaller than Lower bound {}! Will read the file from lower bound to end instead!".format(dataRange[1], dataRange[0]))
                temp = dataRange[0]

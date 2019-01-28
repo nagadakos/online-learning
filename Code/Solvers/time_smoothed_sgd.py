@@ -103,23 +103,35 @@ class TSSGD(Optimizer):
             group.setdefault('nesterov', False)
 
     def step(self, closure=None):
-        # """Performs a single optimization step.
+        """Performs a single optimization step.
 
-        # Arguments:
-            # closure (callable, optional): A closure that reevaluates the model
-                # and returns the loss.
-        # """
+            Arguments:
+                        # closure (callable, optional): A closure that reevaluates the model
+                        # and returns the loss.
+            Description: This function follows the standard pytorch SGD implementation wqith the following exceptions.
+                         1. It logs all previous gradients up to the given parameter value w.
+                         2. For each new step, instead of using only the current gradient it uses the average value
+                            of the past w gradients, if they exist; elsewise it uses all available.
+                         3. It then performs  the update as x_t+1 = x_t - lr * SUM_(i:0-w-1){ grad_(x_i) } 
+        """
         loss = None
+        # This is used for the rolling window history param group index. There are multiple param groups
+        # each one with its own gradient.
+        paramIdx = 0
         if closure is not None:
             loss = closure()
 
+        # Empty the list position to hold the current grad.
+        self.history[self.entryIdx] = []
+        storedElems = 0
+        # print(self.entryIdx)
         for group in self.param_groups:
             weight_decay = group['weight_decay']
             momentum = group['momentum']
             dampening = group['dampening']
             nesterov = group['nesterov']
             w = group['w']
-
+            # print("Len of group_params: {}".format(len(group['params'])))
             for p in group['params']:
                 if p.grad is None:
                     continue
@@ -141,7 +153,26 @@ class TSSGD(Optimizer):
                 # Need to log the computed gradient at each step, so we can use it to smooth out the
                 # SGD jumps in the following fashion x_t+1 = x_t - (lr / w) * SUM_0-w { grad(x_t) }
                 self.history[self.entryIdx].append(d_p)
-                p.data.add_(-group['lr'], d_p)
-                self.entryIdx = (self.entryIdx+1) % self.w
+                # print("--------------------------------\n")
+                # print(paramIdx)
+                grad_sum = d_p.clone()
+                # print(grad_sum)
+                # print("--------------------------------\n")
+                for i in range(w):
+                    # print("i is {} paramIdx: {}".format(i, paramIdx))
+                     if len(self.history[i]) != 0:
+                         storedElems += 1
+                         if i != self.entryIdx:
+                        # print("In here i" + str(i) + "entry index " + str(self.entryIdx))
+                            grad_sum.add(self.history[i][paramIdx])
+                        # if self.entryIdx> 0 and self.entryIdx < 20:
+                            # print(self.history[i][paramIdx])
+                grad_sum /= storedElems 
+                storedElems = 0
+                # p.data.add_(-group['lr'], d_p)
+                p.data.add_(-group['lr'], grad_sum)
+                paramIdx += 1
+        self.entryIdx = (self.entryIdx+1) % self.w
 
+        # self.entryIdx  = self.entryIdx +1 if self.entryIdx < w else 0 
         return loss

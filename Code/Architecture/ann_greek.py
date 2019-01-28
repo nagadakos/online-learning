@@ -177,7 +177,7 @@ class ANNGreek(nn.Module):
                 if abs(l_t - l_t_1) < epsilon and e > 5:
                     break
         # If saving history and plots is required.
-        fileExt = modelLabel + "-preTrain-for-"+str(epochs)+'-epchs'
+        fileExt = modelLabel + "-for-"+str(epochs)+'-epchs'
         if saveHistory == True:
             self.save_history(tarFolder = 'PreTrain', fileExt = fileExt, rootFolder=saveRootFolder)
             print("Saving model {}-->id: {}".format(self.defPlotSaveTitle, hex(id(self))))

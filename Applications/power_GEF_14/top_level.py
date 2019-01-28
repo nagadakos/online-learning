@@ -68,10 +68,23 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
                     TaskLoaders:            Dataloader Object that contains the Task data.hasattr
                     filesNum:               A list of ints, containing the loaded task files numbers (i.e 2 for Task 2 etc)
     '''
+    # Tell the Loader to bring back shuffled data, use 1 or more worker threads and pin-memory
+    comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
+
+    # Load all the 15 files as taskloaders. Each one is one of the 15 tasks to assess learning on.
+    # If required return the task loaders for the online schemes.
+    filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
+    taskLoaders = []
+    for i, t in enumerate(filesNum):
+        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), toShape = reshapeDataTo, transform = "normalize") 
+        testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
+        taskLoaders.append(testLoader)
+        print(len(testSet))
+
     # Task 1 file offset.
     if loadFromEnd == True:
         trainDataRange = [85443 - int(preTrainYears * 365.25)*24, 0]
-        testDataRange = trainDataRange
+        testDataRange = taskLoaders[0]
     else:
         trainDataRange = [0, 35064 + int(preTrainYears * 365.25)*24] #if trainingScheme['update'] != 'Benchmark' else [0, 90000]
         testDataRange = [trainDataRange[1], 0]
@@ -82,19 +95,9 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
     valSet = GEF_Power.GefPower(dataPath, toShape = reshapeDataTo, transform =
                                   "normalize",dataRange= testDataRange) 
 
-    # Tell the Loader to bring back shuffled data, use 1 or more worker threads and pin-memory
-    comArgs = {'shuffle': True,'num_workers': 2, 'pin_memory': True} if torch.cuda.is_available() else {}
-
+    
     trainLoader = torch.utils.data.DataLoader(trainSet, batch_size = batchSize, **comArgs)
     valLoader = torch.utils.data.DataLoader(valSet, batch_size = batchSize, **comArgs)
-
-        # If required return the task loaders for the online schemes.
-    filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
-    taskLoaders = []
-    for i, t in enumerate(filesNum):
-        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), toShape = reshapeDataTo, transform = "normalize",dataRange= testDataRange) 
-        testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
-        taskLoaders.append(testLoader)
 
     return trainLoader, valLoader, taskLoaders, filesNum
 
@@ -296,10 +299,11 @@ def main():
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.001, 0.01, 0.05, 0.1,0.3,0.5]#, 0.9] # learning rate
+    gamma = [0.2, 0.3, 0.8, 0.9]#, 0.9] # learning rate
     momnt = [0.0]#, 0.5] # momentum
-    wDecay= [0.001,0.01, 0.1, 0.01, 0.1, 0.5]       # weight decay (l2 normalization)   
-    window= [5]          # window size for time smoothed variants
+    wDecay= [0.01]       # weight decay (l2 normalization)   
+    window= [5,10,15,20,30,50]          # window size for time smoothed variants
+    # window = [5]          # window size for time smoothed variants
     optimName = "TSSGD"
     totalModels = len(gamma) * len(momnt) * len(wDecay)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window))
@@ -308,16 +312,18 @@ def main():
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
+    #                    0               1              2          3          4
     availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline', 'Online']
-    scheme = availSchemes[1] # Benchmark, ParamEvaluation
+    scheme = availSchemes[3] # Benchmark, ParamEvaluation
     # set has 5.75 years. Update: monthly, weekly. Load from end tells loader to load data from the
     # last years to the first.
-    trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme, loadFromEnd = True)   
+    trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme, loadFromEnd = False)   
                                                                          # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
 
     # File, plot and log saving variables. Leaveto None, to save to default locations
+    plotResults = 0
     logSavePath  = None
     plogSavePath = None
     # ---|
@@ -329,7 +335,6 @@ def main():
     # **********
     # Start of working logic.
 
-
     # Pass this dictionary as arg input to the init function. The data ranges should be relevant
     # To the raw data files input. All offsetting etc is taken care of from the dataset code
     # The tasks argument controls which Task folders are going to be loaded for use. Give a list
@@ -338,8 +343,13 @@ def main():
     dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainingScheme = trainingScheme , batchSize = batchSize)
 
     # remember that range(a,b) is actually [a,b) in python.
-    predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for
-                                                                                 i in tasks]
+    predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for i in tasks]
+
+    # Add extra label for Time-smoothed SGD trainer
+    trainerLabel =  optimName
+    # Get the pretrain specifics
+    preTrainNum = int(trainingScheme['preTrainOn'][0][0])
+    preTrainType = trainingScheme['preTrainOn'][0][2:]
     # Get the models, optimizer, train, evaluation and test (Task) data loader objects here.
     # Models are initilized with the same weights. The number of models returned is
     # a function of the combinization of optimizer parameters lr*moment*weight decay.
@@ -376,7 +386,7 @@ def main():
                                                               schedule['testLabels'])):
                         # print(trainLoaders, tests)
                         # print(len(trainLoaders), len(tests))
-                        modelTrainInfo = 'Trained-on-'+ str(len(trainLoaders))
+                        modelTrainInfo = '-'.join((optimName,str(window[wi]),'Trained-on',str(len(trainLoaders)),'Tasks','preTrain-on',str(preTrainNum),preTrainType))
                         
                         # Invoke training an Evaluation
                         model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = False, modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme)
@@ -407,24 +417,24 @@ def main():
                             optim = init_optim(model.parameters(), optimParams)
                 idx += 1
     # ---|
-    # modelLabel = "0.5-0.7-0.1"
-    modelLabel = scheme    # Plot total evaluation plot
-    # This should become a function
-    # keep in mind that join ignore blank strings
-    filePath = join(dir_path, 'Logs', arch, modelLabel, 'PreTrain')
-    f = plotter.get_files_from_path(filePath, "*preTrain-for-"+str(epochs)+"-epchs-log1.txt")
-    print(f)
-    files = []
-    for i in f['files']:
-        files.append(join(filePath, i)) 
-    print("****\nPlotting Evaluation Curves...\n****")
-    title = arch +' Learning Curves Evaluation\n Solid: Train, Dashed: Test'
-    plotter.plot_regressor(filesPath = files, title = title, labels=evalPlotLabels)
-    # plt.savefig(dir_path + '/Plots/' + arch +'/' + '/eval-plot-'+str(randint(0,20))+'.png')
-    plotSavePath = join(dir_path, 'Plots', arch , modelLabel, 'eval-plot-'+str(randint(0,20))+'.png')
-    print('Saving {} evaluation plots at: {}'.format(scheme, plotSavePath))
-    plt.savefig(plotSavePath)
-    plt.close()
+    if plotResults:
+        modelLabel = scheme    # Plot total evaluation plot
+        # This should become a function
+        # keep in mind that join ignore blank strings
+        filePath = join(dir_path, 'Logs', arch, modelLabel, 'PreTrain')
+        f = plotter.get_files_from_path(filePath, "*for-"+str(epochs)+"-epchs-log1.txt")
+        print(f)
+        files = []
+        for i in f['files']:
+            files.append(join(filePath, i)) 
+        print("****\nPlotting Evaluation Curves...\n****")
+        title = arch +' Learning Curves Evaluation\n Solid: Train, Dashed: Test'
+        plotter.plot_regressor(filesPath = files, title = title, labels=evalPlotLabels)
+        # plt.savefig(dir_path + '/Plots/' + arch +'/' + '/eval-plot-'+str(randint(0,20))+'.png')
+        plotSavePath = join(dir_path, 'Plots', arch , modelLabel, 'eval-plot-'+str(randint(0,20))+'.png')
+        print('Saving {} evaluation plots at: {}'.format(scheme, plotSavePath))
+        plt.savefig(plotSavePath)
+        plt.close()
 #  End of main
 #  -------------------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------

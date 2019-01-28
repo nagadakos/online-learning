@@ -207,9 +207,10 @@ def main():
     title = 'ANNGREEK Learning Curves Evaluation Solid: Train, Dashed: Test'
     # title = 'ANNGREEK Update Scheme Evaluation Plots'
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
+    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Offline/PreTrain/Experiment_01-27-2019"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
     f = get_files_from_path(filePath, "*log1.txt")

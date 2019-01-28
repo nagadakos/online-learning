@@ -65,7 +65,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
         indata = [indata]
 
     for setID, dSet in enumerate(indata):
-        print(dSet)
+        # print(dSet)
         for idx, (data, label) in enumerate(dSet):
             data, label = data.to(device), label.to(device)
             # forward pass calculate output of model
@@ -99,7 +99,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
                 print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(dSet),
                                                                                pred.shape[0], loss.item() ))
                 factor += pred.shape[0]
-                print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
+                # print("Average MAE: {}, Average MAPE: {:.4f}%".format(MAE / factor, MAPE*100 /factor))
         totalSize += len(dSet.dataset)
     # Log the current train loss
     MAE  = MAE/totalSize
