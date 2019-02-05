@@ -61,6 +61,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
     e = 0.001     # used for avoiding division by 0.
     totalSize = 0 # used for averaging error in the end
     factor = 0    # used for AVG MAE display  
+    epch = args[0]
     if not isinstance(indata, list):
         indata = [indata]
 
@@ -93,7 +94,7 @@ def train_regressor(model, args, device, indata, optim, lossFunction = nn.MSELos
             # 2. Perform the backpropagation based on loss
             loss.backward()            
             # 3. Update weights 
-            optim.step()
+            optim.step(t=epch+1)
            # Training Progress report for sanity purposes! 
             if idx % 4 == 0 or idx % pred.shape[0] == 0 : 
                 print("Epoch: {}-> Batch: {} / {}, Size: {}. Loss = {}".format(args, idx, len(dSet),
@@ -172,6 +173,41 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
 
 # End of train Regressor 
 # ---------------------------------------------------------------------------------------_
+#--------------------------------------------------------------------------------------
+# Start of Dynamic convergence check
+def dynamic_conv_check(lossHistory, args = dict(window = 2, percent_change = 0.01)):
+    ''' Description: This function checks whether train should stop according to progress made.
+                     If the criteria is met, training will halt.
+        Arguments:   lossHistory (list): a list of lists containing loss and MAE, MAPE, as
+                                         indexex by ridx file.
+                     args:  A dictionary with operational parameters.
+                     w:     Length of history to tbe considered
+    '''     
+    w = args['window'] 
+    perc = args['percent_change']
+    # Sanitazation
+    # check for parameter validity
+    w = w if len(lossHistory[ridx.trainLoss]) >= w else len(lossHistory[ridx.trainLoss]) 
+    # Compute average loss difference from history
+    loss_i_1 = lossHistory[ridx.trainLoss][-w] 
+    avg_loss = loss_i_1
+    loss_diff= 0
+    for i in lossHistory[ridx.trainLoss][-w+1:]:
+        loss_diff = loss_i_1 - i
+        avg_loss += i
+        loss_i_1 = i
+    loss_diff /=w
+    avg_loss /= w
+    target = avg_loss * perc
+    # if average loss change is less than a percentage of the average loss, exit.
+    if loss_diff  < target and len(lossHistory[ridx.trainLoss]) > args['window']:
+        print('!!!!!!!!!!!!!!!!!!!!')
+        print("Progress over last {} epochs is less than {}% ({:.4f}<{:.4f}). Exiting Training".format(w,perc, loss_diff, target))
+        print('!!!!!!!!!!!!!!!!!!!!')
+        return 1
+    else:
+        return 0
+
 
 # ------------------------------------------------------------------------------------------------------
 # Main funcion: Used for debuging logic.

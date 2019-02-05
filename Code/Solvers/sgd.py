@@ -94,7 +94,7 @@ class SGD(Optimizer):
         for group in self.param_groups:
             group.setdefault('nesterov', False)
 
-    def step(self, closure=None):
+    def step(self, t=1, closure=None):
         # """Performs a single optimization step.
 
         # Arguments:
@@ -102,7 +102,6 @@ class SGD(Optimizer):
                 # and returns the loss.
         # """
         loss = None
-        print("in step")
         if closure is not None:
             loss = closure()
 
@@ -113,7 +112,6 @@ class SGD(Optimizer):
             nesterov = group['nesterov']
 
             for p in group['params']:
-                print(p)
                 if p.grad is None:
                     continue
                 d_p = p.grad.data

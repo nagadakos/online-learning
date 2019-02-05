@@ -390,6 +390,10 @@ class GefPower(Dataset):
         dataRange = [self.lowerBnd, self.upperBnd]
         print(dataRange)
         print("Filesize: {}, fileofset: {}".format(fileSize, self.offset))
+        if dataRange[0] >= 0 and isinstance(dataRange[0],float):
+            dataRange[0] = int(dataRange[0] * fileSize)
+        if dataRange[1] >= 0 and isinstance(dataRange[1],float):
+            dataRange[1] = int(dataRange[1] * fileSize)
         # Check for line read range validity. If UB < LB, reverse them, unless UB = 0.
         # UB = 0, means read the whole file from LB to end.
         if dataRange[1] <= dataRange[0] :
@@ -407,13 +411,14 @@ class GefPower(Dataset):
             # if raw data does not have to be reshaped, just read it, taking offset to account.
             if self.toShape is None: 
                 if dataRange[0] < self.offset:
-                    print("Labeled Data starts as line {}. Offsetting accordingly.".format(offset))
+                    print("Labeled Data starts as line {}. Offsetting accordingly.".format(self.offset))
                     dataRange[0] = self.offset
             else:
                 # New reshaped file does not have the offset unlabeld lines
                 # So, we need to account for that.
                 dataRange[0] = max(dataRange[0] - self.offset,0)  
                 dataRange[1] = max(dataRange[1] - self.offset,0)  
+         
 
         if dataRange[0] > fileSize:
             print("Lower bound given for data loading is larger than target file. {} vs {}".format(dataRange[0], fileSize))
@@ -502,9 +507,9 @@ if __name__ == "__main__":
     # myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
                          # dataRange=[0, 76799])
 
-    # myDataset2 = GefPower(task = "Task 1", transform = "normalize",
-                         # dataRange= [90000,0])
-
+    myDataset2 = GefPower(task = "Task 2", transform = "normalize",
+                         dataRange= [0.8,0])
+    print(myDataset2)
     # print(myDataset)
     # myDataset.get_data_descr()
     # print(myDataset.__getitem__(1))
@@ -513,11 +518,11 @@ if __name__ == "__main__":
     # item, label  = myDataset2.__getitem__(3)
     # print(item, label)
     # print("Size of an instance {}".format(myDataset.get_item_size()))
-    loss = np.zeros((14,6))
-    for n in range(1,15):
-        t = "Task "+ str(n)
-        f = "L"+ str(n)+"-benchmark.csv"
-        gT = "Task "+ str(n+1)
-        gF = "L"+ str(n+1)+"-train.csv"
-        loss[n-1,5] = comp_benchmark_loss_manual(t,f,gT,gF)
-    np.savetxt("provided_benchmark.txt", loss, fmt = '%.3f')
+    # loss = np.zeros((14,6))
+    # for n in range(1,15):
+        # t = "Task "+ str(n)
+        # f = "L"+ str(n)+"-benchmark.csv"
+        # gT = "Task "+ str(n+1)
+        # gF = "L"+ str(n+1)+"-train.csv"
+        # loss[n-1,5] = comp_benchmark_loss_manual(t,f,gT,gF)
+    # np.savetxt("provided_benchmark.txt", loss, fmt = '%.3f')

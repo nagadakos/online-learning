@@ -173,8 +173,7 @@ class ANNGreek(nn.Module):
             # If adaptive duration for training is enabled, then break training process if progress
             # in loss is less than epsilon. Should be expanded in average over past few epochs.
             if adaptDurationTrain == True:
-                print("Model {} has made no progress in past 2 iters. Discontinuing training".format(self.defPlotSaveTitle))
-                if abs(l_t - l_t_1) < epsilon and e > 5:
+                if trainer.dynamic_conv_check(self.history, args=dict(window= 10, percent_change=0.01)):
                     break
         # If saving history and plots is required.
         fileExt = modelLabel + "-for-"+str(epochs)+'-epchs'

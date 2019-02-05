@@ -117,6 +117,7 @@ def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inR
     # ---|
 
     fig = plt.figure(figsize=(19.2,10.8))
+    # fig = plt.figure(figsize=(13.68,9.80))
     plt.title(title)
     plt.ylabel('Loss')
     plt.xlabel(xLabel)
@@ -149,13 +150,13 @@ def plot_regressor(filesPath='', title = '', xAxisNumbers = None, labels=[], inR
         marker = markerList[randint(0, len(markerList))]
         if plot == 'All' or plot == 'Train':
             plt.plot(epchs, a[ridx.trainLoss], color = c1(i / float(len(reps))), linestyle =
-                 '-', marker=marker, label = ext)
+                 '-', marker=marker, label = 'Train-'+ext)
         # plt.plot(epchs, a[ridx.testLoss],  (str(next(cycol))+markerList[rndIdx]+'--'), label = ext)
         if plot == 'All' or plot == 'Test': 
             linestyle = "-" if "no" in ext else "--"
             linestyle = ":" if "provided" in ext else linestyle 
-            plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = linestyle, marker=marker, label = ext)
-        plt.legend( loc='lower right')
+            plt.plot(epchs, a[ridx.testLoss], color=  str(next(cycol)), linestyle = linestyle, marker=marker, label = 'Test-'+ext)
+        plt.legend( loc='upper right')
         ext_list.append(ext)
         test_loss_list.append(a[ridx.testLoss][-1])
 
@@ -204,13 +205,15 @@ def plot_acc(rep1, rep2, epochs, title):
 #
 #--------------------------------------------------------------------------------------------------------
 def main():
-    title = 'ANNGREEK Learning Curves Evaluation Solid: Train, Dashed: Test'
+    # title = 'ANNGREEK Learning Curves Evaluation Solid: Train, Dashed: Test'+str(randint(0,20))
+    figType = 'Solver_Performance_Curves' 
+    title = figType+'. Evaluation on Load: Task2. Model: ANNGREEK'
     # title = 'ANNGREEK Update Scheme Evaluation Plots'
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Offline/PreTrain/Experiment_01-27-2019"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Offline/PreTrain/Experiment_01-30-2019"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
     f = get_files_from_path(filePath, "*log1.txt")
@@ -228,8 +231,8 @@ def main():
     
     # NOTE: Change this number to match the training epochs
     xAxisNumbers = np.arange(1, 101)
-    plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'All', mode = 'Prediction History' )
-    plt.savefig("../../Applications/power_GEF_14/Plots/"+title+".png")
+    plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
+    plt.savefig("../../Applications/power_GEF_14/Plots/"+figType+str(randint(0,20)) + ".png")
     plt.close()
 
   
