@@ -504,12 +504,12 @@ def comp_benchmark_loss_manual(t,f, gT,gF):
 if __name__ == "__main__":
 
     # print(" GEF Power Dataset as Main ")
-    # myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
-                         # dataRange=[0, 76799])
+    myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
+                         dataRange=[76733,83389])
 
-    myDataset2 = GefPower(task = "Task 2", transform = "normalize",
-                         dataRange= [0.8,0])
-    print(myDataset2)
+    # myDataset2 = GefPower(task = "Task 2", transform = "normalize",
+                         # dataRange= [0.8,0])
+    print(myDataset)
     # print(myDataset)
     # myDataset.get_data_descr()
     # print(myDataset.__getitem__(1))

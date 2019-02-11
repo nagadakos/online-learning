@@ -152,6 +152,7 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
     # Print Regressor's evaluation report!
     if trainMode == True:
         print("--Epoch {}  Testing --".format(args[0]))
+        print("Model: {}".format(model.info))
         print("Average MAE: {}, Average MAPE: {:.4f}%, Agv Loss: {:.4f}".format(MAE, MAPE, loss))
         print("-------")
         model.history[ridx.testLoss].append(loss)   #get only the loss value

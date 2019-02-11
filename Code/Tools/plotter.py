@@ -213,7 +213,7 @@ def main():
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Offline/PreTrain/Experiment_01-30-2019"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/Experiment-02-08-2019-A/Predictions"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
     f = get_files_from_path(filePath, "*log1.txt")
@@ -230,7 +230,7 @@ def main():
     print(len(files), len(labels))
     
     # NOTE: Change this number to match the training epochs
-    xAxisNumbers = np.arange(1, 101)
+    xAxisNumbers = np.arange(1, 15)
     plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
     plt.savefig("../../Applications/power_GEF_14/Plots/"+figType+str(randint(0,20)) + ".png")
     plt.close()

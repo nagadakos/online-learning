@@ -47,12 +47,12 @@ class ANNGreek(nn.Module):
     '''
 
     def __init__(self, inSize = 2, outSize = 1, loss = "Quantile", optim = "SGD", lr=0.1, momnt=0,
-            wDecay=0, targetApp = "power_GEF_14", seed = 1): 
+            wDecay=0, w= 1, targetApp = "power_GEF_14", seed = 1): 
         super(ANNGreek, self).__init__() 
 
         # ===============================================================================
-        # SECTION A
-        # **********
+        # SECTION A.0
+        # ***********
         # NOTE: Change this appropriately for new Architectures! 
         #              
         # *******************************************************
@@ -91,17 +91,25 @@ class ANNGreek(nn.Module):
         # Default File Saving parameter setting.
         self.targetApp = targetApp 
         self.defSavePath = '/'.join((dir_path, '../../Applications', self.targetApp))
-        self.defSavePrefix = '-'.join((str(self.lr),str(self.momnt), str(self.wDecay)))
+        self.defSavePrefix = '-'.join((str(self.lr),str(self.momnt), str(self.wDecay),str(w)))
+        self.info ='-'.join((self.descr, self.defSavePrefix))
         self.defPlotSaveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt), str(self.wDecay), self.loss))    
         # End of init
         # ---------------------------------------------------------------------------------
 
     def forward(self, x): 
-
+        # =================================================================================
+        # Section A.1
+        # ***********
+        # Define the architecture layout of the model
+        # ******************************************************
         x = F.elu(self.linear(x)) 
         x = F.elu(self.linear2(x)) 
 
         return x 
+        # ******************************************************
+        # 
+        # =================================================================================
 
     def get_model_descr(self):
         """Creates a string description of a polynomial."""
@@ -186,7 +194,10 @@ class ANNGreek(nn.Module):
         if savePlot == True:
             self.plot(fileExt = fileExt, rootFolder=saveRootFolder)
             self.save_plots(titleExt = fileExt, saveRootFolder=saveRootFolder)
-    
+   
+#----------------------------------------------------------------------------------------------------
+#
+#----------------------------------------------------------------------------------------------------
     # Testing and error reports are done here
     def predict(self, args, device, testLoader, lossFunction = nn.MSELoss(), saveResults = True,
                 tarFolder = 'Predictions', fileExt = '', saveRootFolder = '', modelLabel = ''):
@@ -197,12 +208,18 @@ class ANNGreek(nn.Module):
 
         # Only save the prediction history and the results, not the training history.
         if saveResults == True:
-           saveRootFolder = saveRootFolder + '/' if saveRootFolder != '' else saveRootFolder
-           self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', rootFolder = saveRootFolder,fileExt = fileExt,
+            # If saving history and plots is required.
+            fileExt = modelLabel 
+ 
+            saveRootFolder = saveRootFolder + '/' if saveRootFolder != '' else saveRootFolder
+            # Save prediction history losses
+            self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', rootFolder = saveRootFolder,fileExt = fileExt,
                              savePredHist = True, saveTrainHist = False) 
-           self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder = saveRootFolder, fileExt =
+            # Save prediction loss matrices
+            self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder = saveRootFolder, fileExt =
                              fileExt+taskLabel+'-lossMatrix', saveTrainHist = False, saveResults = True, results = lossMatrix) 
-           self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder =
+            # Save prediction actual results.
+            self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder =
                              saveRootFolder, fileExt =
                              fileExt+taskLabel+'-predictions', saveTrainHist = False, saveResults = True, results = output) 
 
