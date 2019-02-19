@@ -176,7 +176,7 @@ def test_regressor(model, args, device, testLoader, trainMode= False, lossFuncti
 # ---------------------------------------------------------------------------------------_
 #--------------------------------------------------------------------------------------
 # Start of Dynamic convergence check
-def dynamic_conv_check(lossHistory, args = dict(window = 2, percent_change = 0.01)):
+def dynamic_conv_check(lossHistory, args = dict(window = 2, percent_change = 0.01, counter = 0 )):
     ''' Description: This function checks whether train should stop according to progress made.
                      If the criteria is met, training will halt.
         Arguments:   lossHistory (list): a list of lists containing loss and MAE, MAPE, as
@@ -186,29 +186,37 @@ def dynamic_conv_check(lossHistory, args = dict(window = 2, percent_change = 0.0
     '''     
     w = args['window'] 
     perc = args['percent_change']
+    counter = args['counter']
     # Sanitazation
     # check for parameter validity
-    w = w if len(lossHistory[ridx.trainLoss]) >= w else len(lossHistory[ridx.trainLoss]) 
-    # Compute average loss difference from history
-    loss_i_1 = lossHistory[ridx.trainLoss][-w] 
-    avg_loss = loss_i_1
-    loss_diff= 0
-    for i in lossHistory[ridx.trainLoss][-w+1:]:
-        loss_diff = loss_i_1 - i
-        avg_loss += i
-        loss_i_1 = i
-    loss_diff /=w
-    avg_loss /= w
-    target = avg_loss * perc
-    # if average loss change is less than a percentage of the average loss, exit.
-    if loss_diff  < target and len(lossHistory[ridx.trainLoss]) > args['window']:
-        print('!!!!!!!!!!!!!!!!!!!!')
-        print("Progress over last {} epochs is less than {}% ({:.4f}<{:.4f}). Exiting Training".format(w,perc, loss_diff, target))
-        print('!!!!!!!!!!!!!!!!!!!!')
-        return 1
+    w = w if len(lossHistory[ridx.testLoss]) >= w else len(lossHistory[ridx.testLoss]) 
+    # Increase the watch counter. When the track counter surpasses the target window length
+    # check to see if progress  has been made. Essentially, by setting counter to 0 the function
+    # will wait for window checks, again, before checking for convergence.
+    counter += 1 
+    if counter >= w:
+        # Compute average loss difference from history
+        loss_i_1 = lossHistory[ridx.testLoss][-w] 
+        avg_loss = loss_i_1
+        loss_diff= 0
+        for i in lossHistory[ridx.testLoss][-w+1:]:
+            loss_diff += loss_i_1 - i
+            avg_loss += i
+            loss_i_1 = i
+        loss_diff /=w
+        avg_loss /= w
+        target = avg_loss * perc
+        # if average loss change is less than a percentage of the average loss, exit.
+        if loss_diff  < target and len(lossHistory[ridx.testLoss]) > args['window']:
+            print('!!!!!!!!!!!!!!!!!!!!')
+            print("Progress over last {} epochs is less than {}% ({:.4f}<{:.4f}). Exiting Training".format(w,perc*100, loss_diff, target))
+            print('!!!!!!!!!!!!!!!!!!!!')
+            return 1
+        else:
+            return 0
+
     else:
         return 0
-
 
 # ------------------------------------------------------------------------------------------------------
 # Main funcion: Used for debuging logic.

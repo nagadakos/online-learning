@@ -233,7 +233,7 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
             print(i, t)
             schedule['trainOn'].append(taskLoaders[0][i])
             schedule['testOn'].append([taskLoaders[1][i]])
-            schedule['labels'].append(['Trained-up-to-task-' + str(i)])
+            schedule['labels'].append(['Trained-up-to-task-' + str(filesNum[i])])
             schedule['testLabels'].append(['Task-' + str(filesNum[i])])
             schedule['predOn'].append([taskLoaders[0][i+1]])
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
@@ -315,13 +315,13 @@ def main():
 
     # Optimizer Declaration and parameter definitions go here.
     gamma = [0.9] # learning rate
-    momnt = [0.0]#, 0.5] # momentum
+    momnt = [0.5]#, 0.5] # momentum
     wDecay= [0.01]       # weight decay (l2 normalization)   
-    window= [5]          # window size for time smoothed variants
-    alpha = [0,0.1,0.3,0.5,0.7,0.9]
-    # alpha = [0.5]
-    optimName = "A-TSSGD"
-    lrScheme = ['fixed-reduction']
+    window= [11]          # window size for time smoothed variants
+    # alpha = [0,0.1,0.3,0.5,0.7,0.9]
+    alpha = [1]
+    optimName = "SGD"    # SGD,(DW)-A-TSSGD, (DW-)ED-TSSGD
+    lrScheme = ['constant']
     totalModels = len(gamma) * len(momnt) * len(wDecay) * len(window) * len(alpha)
     optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window, a = alpha, lrScheme = lrScheme))
     TSSGDOptimParams = dict(name = "TSSGD", params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w =window))
@@ -360,10 +360,10 @@ def main():
     dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainingScheme = trainingScheme , batchSize = batchSize)
 
     # remember that range(a,b) is actually [a,b) in python.
-    predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for i in tasks]
+    # predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for i in tasks]
 
     # Add extra label for Time-smoothed SGD trainer
-    trainerLabel =  optimName#+"-diffWeighed-a"
+    trainerLabel =  optimName +'-'+ lrScheme[0]#+"-diffWeighed-a"
     # Get the pretrain specifics
     preTrainNum = int(trainingScheme['preTrainOn'][0][0])
     preTrainType = trainingScheme['preTrainOn'][0][2:]
@@ -403,24 +403,29 @@ def main():
                         # Train according to schedules here. trainloaders and tests can be lists of dataloaders.
                         for sIdx, (trainLoaders, tests, testLabels) in enumerate(zip(schedule['trainOn'], schedule['testOn'],
                                                                   schedule['testLabels'])):
-                            # print(trainLoaders, tests)
-                            # print(len(trainLoaders), len(tests))
-                            modelTrainInfo = '-'.join((trainerLabel,str(alpha[a]),str(window[wi]),'Trained-on',str(len(trainLoaders)),'Tasks','preTrain-on',str(preTrainNum),preTrainType))
-                            
+                            # Form model label string for save purposes
+                            modelTrainInfo = '-'.join((trainerLabel,str(alpha[a]),str(window[wi])))
+                            schemeSpecific = ''
+                            if trainingScheme['update'] == 'Benchmark':
+                                schemeSpecific = '-'.join(('Trained-on', str(len(trainLoaders)), 'Tasks'))
+                            modelTrainInfo = '-'.join((modelTrainInfo, schemeSpecific, 'preTrain-on',str(preTrainNum),preTrainType))
+                            # ---|
+
                             # Invoke training an Evaluation
                             model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = False, 
                                         modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme,
-                                        adaptDurationTrain = False)
-                            model.save(titleExt= '-trainedFor-'+str(epochs))
+                                        adaptDurationTrain = True)
+                            trainDurInfo = '-'.join(('-trainedFor',str(epochs),'epchs'))
+                            model.save(titleExt = trainDurInfo)
                             # ---|
 
                             # Predictions 
                             for i, loader in enumerate(schedule['predOn'][sIdx]):
                                 print(schedule['predLabels'][sIdx])
-                                args[2] = '-'.join((modelTrainInfo,'tasks-for',str(epochs),'epochs-pred-on',
+                                args[2] = '-'.join((modelTrainInfo,trainDurInfo, 'tasks-for',str(epochs),'epochs-pred-on',
                                                     schedule['predLabels'][sIdx][0]))
                                 print(args[2])
-                                model.predict(args, device, loader,modelLabel= modelTrainInfo, lossFunction = loss, tarFolder =
+                                model.predict(args, device, loader,modelLabel= modelTrainInfo+trainDurInfo, lossFunction = loss, tarFolder =
                                               'Predictions/'+ modelTrainInfo, saveRootFolder = scheme)
                             # ---|
 

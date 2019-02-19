@@ -87,11 +87,12 @@ class ANNGreek(nn.Module):
         self.lr = lr
         self.momnt = momnt
         self.wDecay = wDecay
+        self.w = w
         # ---|
         # Default File Saving parameter setting.
         self.targetApp = targetApp 
         self.defSavePath = '/'.join((dir_path, '../../Applications', self.targetApp))
-        self.defSavePrefix = '-'.join((str(self.lr),str(self.momnt), str(self.wDecay),str(w)))
+        self.defSavePrefix = '-'.join((str(self.lr),str(self.momnt), str(self.wDecay)))
         self.info ='-'.join((self.descr, self.defSavePrefix))
         self.defPlotSaveTitle = '-'.join((self.descr, self.optim,"lr", str(self.lr),"momnt", str(self.momnt), str(self.wDecay), self.loss))    
         # End of init
@@ -181,8 +182,10 @@ class ANNGreek(nn.Module):
             # If adaptive duration for training is enabled, then break training process if progress
             # in loss is less than epsilon. Should be expanded in average over past few epochs.
             if adaptDurationTrain == True:
-                if trainer.dynamic_conv_check(self.history, args=dict(window= 10, percent_change=0.01)):
+                if trainer.dynamic_conv_check(self.history, args=dict(window= 10, percent_change=0.03, counter =e)):
                     break
+                else:
+                    print("CONTINUE")
         # If saving history and plots is required.
         fileExt = modelLabel + "-for-"+str(epochs)+'-epchs'
         if saveHistory == True:

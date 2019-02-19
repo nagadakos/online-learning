@@ -207,13 +207,14 @@ def plot_acc(rep1, rep2, epochs, title):
 def main():
     # title = 'ANNGREEK Learning Curves Evaluation Solid: Train, Dashed: Test'+str(randint(0,20))
     figType = 'Solver_Performance_Curves' 
-    title = figType+'. Evaluation on Load: Task2. Model: ANNGREEK'
+    # title = figType+'. Evaluation on Load: Task2. Model: ANNGREEK'
+    title = figType+'. Online Prediction Scheme. Model: ANNGREEK'
     # title = 'ANNGREEK Update Scheme Evaluation Plots'
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/Experiment-02-08-2019-A/Predictions"
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/Experiment-02-10-2019-A-1-year/Prettyfied/Selective tests/DW-Cases"
 
     # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
     f = get_files_from_path(filePath, "*log1.txt")
@@ -228,11 +229,11 @@ def main():
     # print(files)
     print(labels)
     print(len(files), len(labels))
-    
+        
     # NOTE: Change this number to match the training epochs
     xAxisNumbers = np.arange(1, 15)
     plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
-    plt.savefig("../../Applications/power_GEF_14/Plots/"+figType+str(randint(0,20)) + ".png")
+    plt.savefig("../../Applications/power_GEF_14/Plots/"+figType+str(randint(0,150)) + ".png")
     plt.close()
 
   
