@@ -49,8 +49,8 @@ class TSSGD(Optimizer):
         # The Nesterov version is analogously modified.
     # """
 
-    def __init__(self, params, name = "TSSGD", lr=0.001, momentum=0, dampening=0,
-                 weight_decay=0, w = 1, nesterov=False, a =0, wScheme = 'simple', lrScheme = 'constant', ):
+    def __init__(self, params, name = "A-TSSGD", lr=0.001, momentum=0, dampening=0,
+                 weight_decay=0, w = 1, nesterov=False, a =1, wScheme = 'simple', lrScheme = 'constant'):
         # Nameing style: decay factor, combination shceme - window scheme - learning rate scheme - TSSGD
 
         # Compination scheme: Differentialy weighed (DW)
@@ -62,15 +62,17 @@ class TSSGD(Optimizer):
         # ED-TSSGD: exponentially decaying
         # DWED-TSSGD: Differentialy Weighed Time smoothed SGD
         #  
-        self.name = name
+        self.name = name+'-'+lrScheme
+        self.descr = '-'.join((self.name, str(lr), str(momentum), str(weight_decay), wScheme, str(w), str(a)))
         self.lr = lr
         self.momnt = momentum
         self.wDecay = weight_decay
         self.w = w 
         self.a = a
-        self.history = [[] for i in range(w)]
+        self.history = []
         self.entryIdx = 0
-        self.learnDecay = list(map(lambda x: self.lr ** x, range(1,w+1)))  # This struct stores the decaying learning rates for the stored gradients.
+        self.lrFactor = 0
+        self.learnDecay = list(map(lambda x: self.lr ** x, reversed(range(0,w+1))))  # This struct stores the decaying learning rates for the stored gradients.
         self.learnDecay = [i if i  >= 10 **-9 else 10 ** -9 for i in self.learnDecay]
         if  lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
@@ -88,6 +90,14 @@ class TSSGD(Optimizer):
         if w % 1 != 0:
             raise ValueError("Window size cannot be negative")
         print(self.learnDecay)
+        print(a,w)
+
+        if lrScheme == "fixed-reduction":
+            self.lrFactor = lambda x: 1/ math.sqrt(x) 
+        elif lrScheme == "grad-based":
+            self.lrFactor = lambda x: 1 
+        else:
+            self.lrFactor = lambda x: 1  # this is essential just 1.form it like this so it can be callable.
         
         super(TSSGD, self).__init__(params, defaults)
 
@@ -103,7 +113,7 @@ class TSSGD(Optimizer):
         params = params if params is not None else self.param_groups[0]['params']
         wIn = w if w == 1  else self.param_groups[0]['w']
         aIn = a if a == 0.5  else self.param_groups[0]['a']
-        self.name = "TSSGD"
+        # self.name = "TSSGD"
         self.lr = lrIn
         self.momnt = momentumIn
         print(WDecayIn, nesterovIn, params, self.name)
@@ -139,17 +149,22 @@ class TSSGD(Optimizer):
         if closure is not None:
             loss = closure()
 
-        # Empty the list position to hold the current grad.
-        self.history[self.entryIdx] = []
-        storedElems = 0
+        self.history.append([])
+        storedElems = len(self.history)
+        # If stored elementes in history exceed w, drop the oldest one, located at the start of list
+        w = self.w
+        if storedElems > w:
+            self.history = self.history[1:]
+            storedElems = w
+        print("Stored elems: " + str(storedElems))
         # print(self.entryIdx)
         for group in self.param_groups:
             weight_decay = group['weight_decay']
             momentum = group['momentum']
             dampening = group['dampening']
             nesterov = group['nesterov']
-            w = group['w']
-            a = group['a']
+            # w = group['w']
+            # a = group['a']
             # print("Len of group_params: {}".format(len(group['params'])))
             for p in group['params']:
                 if p.grad is None:
@@ -159,6 +174,7 @@ class TSSGD(Optimizer):
                     d_p.add_(weight_decay, p.data)
                 if momentum != 0:
                     param_state = self.state[p]
+                    print("MOMENTUM NOT ZERO!!!!")
                     if 'momentum_buffer' not in param_state:
                         buf = param_state['momentum_buffer'] = torch.zeros_like(p.data)
                         buf.mul_(momentum).add_(d_p)
@@ -171,41 +187,41 @@ class TSSGD(Optimizer):
                         d_p = buf
                 # Need to log the computed gradient at each step, so we can use it to smooth out the
                 # SGD jumps in the following fashion x_t+1 = x_t - (lr / w) * SUM_0-w { grad(x_t) }
-                self.history[self.entryIdx].append(d_p)
+                self.history[-1].append(d_p)
                 # print("--------------------------------\n")
                 # print(paramIdx)
-                # grad_sum = (self.learnDecay[0]* a) * 1/math.sqrt(t) * d_p.clone()
-                grad_sum =  1/math.sqrt(t) * d_p.clone()
+                # this is the factor that multiplies the learning rate, at each epoch or step. Used for
+                # adaptive learning rate tuning.
+                lrFactor = self.lrFactor
+                # Steps for i=0, that is for the current gradient. Some schemes require different handling
+                # expecially for the diffferentailly weighed scheme.
+                if 'A-TSSGD' in self.name:
+                    grad_sum =  lrFactor(t) * group['lr'] * d_p.clone()
+                elif "ED-TSSGD" in self.name:
+                    grad_sum = (self.learnDecay[-1]* lrFactor(t) * group['lr']) * d_p.clone()
+                if "DW" in self.name:
+                    grad_sum *= a
+                else:
+                    grad_sum *= 1/ storedElems 
                 # print(grad_sum)
                 # print("--------------------------------\n")
-                for i in range(w):
+                for i in reversed(range(0, storedElems-1)):
                     # print("i is {} paramIdx: {}".format(i, paramIdx))
                     if len(self.history[i]) != 0:
-                        storedElems += 1
-                         # Since a cyclic swift entry pattern is used for storing gradients we need to
-                         # translate it for the learning rate decay, which is stored sequentially, i.e 0-> lr,
-                         # 1-> lr^-1, 2-> lr^-2 ...
-                         #  An example: idx is at 35. This loop starts at i=0. This means that the element at i=0
-                         # is actually from 35 steps ago, and should be weighted with the decay element at spot j=35.
-                         # when the loop variable i is greater than idx, say 36, it actually means that its the very last
-                         # element that should be kept in memory (exactly w) and should be weighted with the most decayed lr
-                        if i != self.entryIdx:
-                            if i <= self.entryIdx:
-                                lrDcIdx = self.entryIdx -i
-                            elif i > self.entryIdx:
-                                lrDcIdx = w - (i - self.entryIdx)
-                        # print("In here i" + str(i) + "entry index " + str(self.entryIdx))
-                            # grad_sum.add( (self.learnDecay[lrDcIdx]* (1/math.sqrt(t)) ) *1/(w-1) * (1-a), self.
-                                         # history[i][paramIdx])
-                        grad_sum.add(1/math.sqrt(t), self.history[i][paramIdx])
-                        # if self.entryIdx> 0 and self.entryIdx < 20:
-                            # print(self.history[i][paramIdx])
-                grad_sum /= (storedElems+1) 
-                storedElems = 0
-                p.data.add_(-group['lr'], grad_sum)
-                # p.data.add_(-grad_sum)
-                paramIdx += 1
-        self.entryIdx = (self.entryIdx+1) % self.w
+                        # learn decay weights are increasing left->right. smallest for oldest grad is at idx 0 and largest
+                        # for newest grad is at idx -1.
+                        if 'A-TSSGD' in self.name:
+                            factor2 = lrFactor(t) * group['lr'] * 1/ storedElems
+                        elif "ED-TSSGD" in self.name:
+                            # print(i,self.learnDecay[-storedElems +i-1])
+                            # oldest grad has smallest weight
+                            factor2 = self.learnDecay[-storedElems+i-1]* lrFactor(t) * group['lr'] * 1/ storedElems
+                        if "DW" in self.name:
+                            factor2 *= a
 
-        # self.entryIdx  = self.entryIdx +1 if self.entryIdx < w else 0 
-        return loss
+                        grad_sum.add(factor2, self.history[i][paramIdx])
+                # add the grad sum to the original parameters.
+                p.data.add_(-grad_sum)
+                paramIdx += 1
+
+        return loss 

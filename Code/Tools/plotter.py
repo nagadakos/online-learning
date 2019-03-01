@@ -208,16 +208,15 @@ def main():
     # title = 'ANNGREEK Learning Curves Evaluation Solid: Train, Dashed: Test'+str(randint(0,20))
     figType = 'Solver_Performance_Curves' 
     # title = figType+'. Evaluation on Load: Task2. Model: ANNGREEK'
-    title = figType+'. Online Prediction Scheme. Model: ANNGREEK'
+    title = figType+'. Online Prediction Scheme. Model: ANNGREEK constant lr:0.9, SGD-mom:0.5,wDecay:0.01, adaptive training stopage'
     # title = 'ANNGREEK Update Scheme Evaluation Plots'
-    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/results"
-    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/ParamEvaluation/PreTrain_old"
-    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Validation/PreTrain"
-    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Benchmark/PreTrain"
-    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/Experiment-02-10-2019-A-1-year/Prettyfied/Selective tests/DW-Cases"
+    # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/Experiment-02-10-2019-A-1-year/Prettyfied/Selective tests/DW-Cases"
+    # experimentFolder = 'Experiment-02-10-2019-A-1-year'
+    experimentFolder = 'Experiment-02-19-2019'
+    targetExperiment = '/Benchmark-Comparison'
+    filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/"+experimentFolder+ targetExperiment
 
-    # f = get_files_from_path(filePath, "0.5-0.7-0.1-log1.txt")
-    f = get_files_from_path(filePath, "*log1.txt")
+    f = get_files_from_path(filePath, "*.txt")
     # f = get_files_from_path(filePath, "*results.txt")
     # TODO: get these numbers automatically
     # print(f)
@@ -233,7 +232,7 @@ def main():
     # NOTE: Change this number to match the training epochs
     xAxisNumbers = np.arange(1, 15)
     plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
-    plt.savefig("../../Applications/power_GEF_14/Plots/"+figType+str(randint(0,150)) + ".png")
+    plt.savefig("../../Applications/power_GEF_14/Plots/"+experimentFolder+'/'+figType+str(randint(0,150)) + ".png")
     plt.close()
 
   

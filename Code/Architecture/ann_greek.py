@@ -209,15 +209,16 @@ class ANNGreek(nn.Module):
         output, loss, lossMatrix = trainer.test_regressor(self, args, device, testLoader, lossFunction = lossFunction,
                                trainMode = False)
 
-        # Only save the prediction history and the results, not the training history.
-        if saveResults == True:
-            # If saving history and plots is required.
-            fileExt = modelLabel 
+        # If saving history and plots is required.
+        fileExt = modelLabel 
  
-            saveRootFolder = saveRootFolder + '/' if saveRootFolder != '' else saveRootFolder
-            # Save prediction history losses
-            self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', rootFolder = saveRootFolder,fileExt = fileExt,
+        saveRootFolder = saveRootFolder + '/' if saveRootFolder != '' else saveRootFolder
+        # Save prediction history losses
+        self.save_history(tarFolder = tarFolder+'/PredHistoryLogs', rootFolder = saveRootFolder,fileExt = fileExt,
                              savePredHist = True, saveTrainHist = False) 
+        # Only save the prediction results, not the training history.
+        if saveResults == True:
+
             # Save prediction loss matrices
             self.save_history(tarFolder = tarFolder+'/PredResults', rootFolder = saveRootFolder, fileExt =
                              fileExt+taskLabel+'-lossMatrix', saveTrainHist = False, saveResults = True, results = lossMatrix) 

@@ -39,12 +39,16 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
         optimTemplate = sgd.SGD(modelParams, weight_decay = optimParams["params"]["wDecay"][0],
                                 lr=optimParams["params"]["lr"][0], momentum=optimParams["params"]["momnt"][0])
     elif "TSSGD" in optimParams["name"]:
-        optimTemplate = time_smoothed_sgd2.TSSGD(modelParams, name = optimParams['name'],weight_decay =   
+        optimTemplate = time_smoothed_sgd.TSSGD(modelParams, name = optimParams['name'],weight_decay =   
                                                  optimParams["params"]["wDecay"][0], lr=optimParams["params"]["lr"][0], 
                                                  momentum=optimParams["params"]["momnt"][0],
                                                  w=optimParams["params"]["w"][0], a=optimParams["params"]["a"][0],
                                                  lrScheme = optimParams['params']['lrScheme'][0])
     else:
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         optimTemplate = sgd.SGD(modelParams, weight_decay = optimParams["params"]["wDecay"][0],
                                 lr=optimParams["params"]["lr"][0], momentum=optimParams["params"]["momnt"][0])
 
@@ -53,7 +57,7 @@ def init_optim(modelParams, optimParams = dict(name="SGD", params=dict(lr=0.1,mo
 # End of init_optim
 #-----------------------------------------------------------------------------------------------------
 def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', loadFromEnd = False, reshapeDataTo = None,
-              val_percent = 0.2):
+              val_percent = 0.2, startFrom =0):
     ''' Description: This function will handle the creation of dataloaders for the scheduler to arrange into valid training
                      schedules. Trainloader and ValLoader are in all cases used for the preTrain part of the process. Task
                      loaders are  the dataset files to be used for prediction and online learning.
@@ -66,7 +70,9 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
                                            start of original dataset. True meansstart loading data from the end towards the
                                            start.
                     6. reshapeDataTo(str): A string used to tell the dataloader class to reshape the data according to the
+                    7. vla_percent(float): A number 0-1 that selects the percentage of the set used as validation.
                                            requirements of each architecture. Should be defined in the Dataset class first.
+                    8. startFrom(int):     A number 0-1 that ingore the given percentage of the dataset from start. 
         Returns:    trainLoader(dataLoader) A dataloader object that contains the preTrain data.
                     ValLoader:              A dataload object that contains preTrain validation data.
                     TaskLoaders:            Dataloader Object that contains the Task data.hasattr
@@ -80,18 +86,19 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
     filesNum = tasks if tasks != "All" else [1*i for i in range(2,16)]
     taskLoaders = [[],[]]
     for i, t in enumerate(filesNum):
-        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), dataRange=[0,1-val_percent], toShape = reshapeDataTo, transform = "normalize") 
+        start = startFrom 
+        testSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), dataRange=[start,1-val_percent], toShape = reshapeDataTo, transform = "normalize") 
         testLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
         taskLoaders[0].append(testLoader)
         valSet = GEF_Power.GefPower(dataPath, task ='Task ' +str(t), dataRange=[1-val_percent,0], toShape = reshapeDataTo, transform = "normalize") 
         valLoader = torch.utils.data.DataLoader(testSet, batch_size = batchSize, **comArgs)
         taskLoaders[1].append(valLoader)
-        print(len(testSet))
+        # print(len(testSet))
 
     # Task 1 file offset.
     if loadFromEnd == True:
         trainStart = 85443 - int(preTrainYears * 365.25)*24
-        trainEnd = 85443 - int(preTrainYears * 365.25)*24 * val_percent
+        trainEnd = 85443 - int(preTrainYears * 365.25*24 * val_percent)
         trainDataRange = [trainStart, trainEnd]
         testDataRange = [trainEnd+1,0] # 0 means till EOF
     else:
@@ -113,10 +120,10 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
 # End of load_data
 #-----------------------------------------------------------------------------------------------------
 
-def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9,w=1,a=0.5, lrScheme =
-                                                                                 'constant')),
-         quantiles = [0.9], device = "cpu", trainingScheme =dict(preTrainOn = ['5 Years'] , update
-                                                                 ='Benchmark', loadFromEnd= False) , batchSize = 1000):
+def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSize = 1000, val_percent = 0.2, startFrom=0,
+         optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9,w=1,a=0.5, lrScheme = 'constant')), 
+         trainingScheme = dict(preTrainOn = ['5 Years'] , update ='Benchmark', loadFromEnd= False, lrScheme = 'constant', 
+                               trainStopage= 'fixed', preTrainOptim = ['SGD'], updateOptim = ['SGD'], epochScheme = [25,25])):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -176,16 +183,17 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # the start. This is usefull if you want to load only the later years and thus limit your
     # available training data.
     loadFromEnd = trainingScheme['loadFromEnd']
-    # preTrainYears = int(trainingScheme['preTrainOn'][0][0]) if trainingScheme['update'] != 'Benchmark' else 5.75
-    preTrainYears = int(trainingScheme['preTrainOn'][0][0]) 
+    preTrainYears = float(trainingScheme['preTrainOn'][0].split()[0])
+    print("PRETRAIN years" + str(preTrainYears))
     # Call this function to reshape raw data to match architecture specific inputs.
     # This function will reshape and save the data as: DataSet_reshaped_as_model.csv
     # delimitered by spaces.
     #
     # Will create data loaders for: pretrain, validation, prediction tasks and a list of pred tasks
     # numbers
-    trainLoader, valLoader, taskLoaders, filesNum = load_data(preTrainYears, loadFromEnd =
-                                                              loadFromEnd, batchSize= batchSize, reshapeDataTo = reshapeDataTo)
+    trainLoader, valLoader, taskLoaders, filesNum = load_data(preTrainYears, loadFromEnd = loadFromEnd, batchSize= batchSize, 
+                                                              reshapeDataTo = reshapeDataTo, val_percent = val_percent, 
+                                                              startFrom = startFrom)
 
     # Sanity prints
     print(len(taskLoaders[0][0].dataset))
@@ -194,15 +202,21 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
     # ------------------------------------------------------------------------------    -
     # SCHEDULER
     # *********
+
     # Generate a schedule of training and testing schemes.
     schedule = dict( trainOn = [], testOn = [], predOn = [], labels =[], testLabels =[], predLabels
-                   = [])
+                   = [], optim= [], lrUpdate =[], trainStop = [], epchScheme = [])
     # Benchmark creates a benchmark case for online training.
     # It uses naively, all available data up to a point to train, and 
     # tests on the rest. I.e train on Task1, 2 ,3 and test on task 4: end.
     # The trainset start from Task 1, Task 1 + val, Task 1 + val + Task 2...
     # The test set Val + Task loaders, Taskloaders, TaskLoaders[2:end] ...
     # The predSet has to be a list of lists. It can have just one list.
+    preTrainOptim = trainingScheme['preTrainOptim']
+    updateOptim = trainingScheme['updateOptim']
+    schedule['optim'].append(preTrainOptim)
+    schedule['epchScheme'].append(trainingScheme['epochScheme'][0])
+    schedule['trainStop'].append(trainingScheme['trainStopage'][0])
     if trainingScheme['update'] == 'Benchmark':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -222,6 +236,9 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
             schedule['testLabels'].append(['Task ' + str(filesNum[i+1])])
             schedule['predOn'].append([taskLoaders[0][i+1]])
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
+            schedule['optim'].append(preTrainOptim)
+            schedule['epchScheme'].append(trainingScheme['epochScheme'][1])
+            schedule['trainStop'].append(trainingScheme['trainStopage'][1])
     elif trainingScheme['update'] == 'Online':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -231,12 +248,15 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
         schedule['predLabels'].append(['Pred on Task ' + str(filesNum[0])])
         for i, t in enumerate(filesNum[:-1]):
             print(i, t)
-            schedule['trainOn'].append(taskLoaders[0][i])
+            schedule['trainOn'].append([taskLoaders[0][i]])
             schedule['testOn'].append([taskLoaders[1][i]])
             schedule['labels'].append(['Trained-up-to-task-' + str(filesNum[i])])
             schedule['testLabels'].append(['Task-' + str(filesNum[i])])
             schedule['predOn'].append([taskLoaders[0][i+1]])
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
+            schedule['optim'].append(updateOptim)
+            schedule['epchScheme'].append(trainingScheme['epochScheme'][1])
+            schedule['trainStop'].append(trainingScheme['trainStopage'][1])
     elif trainingScheme['update'] == 'ParamEvaluation':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -252,6 +272,7 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
         schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
         # Only one pred task. just provide a results for each one of the tasks.
         schedule['predOn'].append(taskLoaders[0])
+        schedule['optim'].append(preTrainOptim)
         for i, t in enumerate(filesNum):
             print(i, t)
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i])])
@@ -266,11 +287,12 @@ def init(model = None, tasks = "All", optimParams = dict(name="SGD", params=dict
             print(i, t)
             labels.append(['Pred on Task ' + str(filesNum[i])])
         schedule['predLabels'].append(labels)
+    # print(trainingScheme['epochScheme'])
     # print(schedule)
     # print(schedule['testOn'])
     # print(schedule['testLabels'])
-    print(schedule['predOn'])
-    print(schedule['predLabels'])
+    # print(schedule['predOn'])
+    # print(schedule['predLabels'])
     # ---|
     return models, optimTemplate, trainLoader, valLoader, taskLoaders, schedule
 
@@ -299,9 +321,11 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    epochs = 100         # must be at least 2 for plot with labellines to work
+    preTrainEpochs = 50         # must be at least 2 for plot with labellines to work
+    updateEpochs = 30
     batchSize = 1000
-
+    val_percent = 0.2             # percentage of each available set to use as validation.
+    startFrom = 0.0
     # Select Architecture here
     arch = "ANNGreek"
     # ---|
@@ -317,24 +341,29 @@ def main():
     gamma = [0.9] # learning rate
     momnt = [0.5]#, 0.5] # momentum
     wDecay= [0.01]       # weight decay (l2 normalization)   
-    window= [11]          # window size for time smoothed variants
+    window= [1]          # window size for time smoothed variants
     # alpha = [0,0.1,0.3,0.5,0.7,0.9]
     alpha = [1]
-    optimName = "SGD"    # SGD,(DW)-A-TSSGD, (DW-)ED-TSSGD
+    preTrainOptimName = "SGD"    # SGD,(DW)-A-TSSGD, (DW-)ED-TSSGD
+    updateOptimName =  'SGD' # only affects the online case
     lrScheme = ['constant']
+    trainStopage = ['fixed', 'adaptive'] # Stopagge cheme for 0: preTrain, 1: update. Options: adaptive, fixed
     totalModels = len(gamma) * len(momnt) * len(wDecay) * len(window) * len(alpha)
-    optimParams = dict(name = optimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window, a = alpha, lrScheme = lrScheme))
-    TSSGDOptimParams = dict(name = "TSSGD", params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w =window))
     # ---|
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
     #                    0               1              2          3          4
     availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline', 'Online']
-    scheme = availSchemes[4] # Benchmark, ParamEvaluation
+    scheme = availSchemes[0] # Benchmark, ParamEvaluation
+    epochScheme = [preTrainEpochs, updateEpochs]
+    # Do this to see if withholding data will affect the accuracy from the onlinecase.
+    if scheme == 'Online':
+        startFrom =0.5
     # set has 5.75 years. Update: monthly, weekly. Load from end tells loader to load data from the
     # last years to the first.
-    trainingScheme= dict(preTrainOn = ["1 Years"], update = scheme, loadFromEnd = True)   
+    trainingScheme= dict(preTrainOn = ["4 Years"], update = scheme, loadFromEnd = True, lrScheme = lrScheme, trainStopage =
+                         trainStopage, preTrainOptim = preTrainOptimName, updateOptim = updateOptimName, epochScheme = epochScheme)   
                                                                          # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
@@ -357,13 +386,16 @@ def main():
     # The tasks argument controls which Task folders are going to be loaded for use. Give a list
     # containing the numbers for the task you want i.e [2, 4,5,6,7,12]. If you with to load all
     # Simple set tasks  "All", which is also the default value.
-    dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, trainingScheme = trainingScheme , batchSize = batchSize)
-
+    optimParams = dict(name = preTrainOptimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window, a = alpha, lrScheme = lrScheme))
+    dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, 
+                         trainingScheme = trainingScheme , batchSize = batchSize, val_percent= val_percent, startFrom=startFrom)
+    
+    
     # remember that range(a,b) is actually [a,b) in python.
     # predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for i in tasks]
 
     # Add extra label for Time-smoothed SGD trainer
-    trainerLabel =  optimName +'-'+ lrScheme[0]#+"-diffWeighed-a"
+    optimUpdateLabel = '-'.join((lrScheme[0]+'LR' , trainStopage[0],trainStopage[1], 'stop'))
     # Get the pretrain specifics
     preTrainNum = int(trainingScheme['preTrainOn'][0][0])
     preTrainType = trainingScheme['preTrainOn'][0][2:]
@@ -375,7 +407,7 @@ def main():
 
     # Model Train Invocation and other handling here
     args = []
-    args.append(epochs)
+    args.append(schedule['epchScheme'][0])
     args.append(batchSize)
     args.append(schedule['labels'][0])  # Hold the Task label as a string i.e 'Task 4'. Used for annotation and saving.
 
@@ -385,7 +417,6 @@ def main():
     # For each parameter evaluate a model. Each models keep track of its history, and the optimizer
     # params with which it was trained.  
     idx = 0
-    # TODO: Define validation, simple use and benchmark routines on top level.
     for l in range(len(gamma)):
         for m in range(len(momnt)):
             for wD in range(len(wDecay)):
@@ -396,37 +427,60 @@ def main():
                         print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
                                                                               wDecay[wD]))
                         # Instantiate solver according to input params
-                        optimParams = dict(name = optimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
+                        optimParams = dict(name = preTrainOptimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
                                       wDecay=[wDecay[wD]], w =[window[wi]], a=[alpha[a]], lrScheme=lrScheme))
                         optim = init_optim(model.parameters(), optimParams)
-                        
                         # Train according to schedules here. trainloaders and tests can be lists of dataloaders.
                         for sIdx, (trainLoaders, tests, testLabels) in enumerate(zip(schedule['trainOn'], schedule['testOn'],
                                                                   schedule['testLabels'])):
+                            # --------------------------------------------------------------------
+                            # EXTRACT SCHEDULER INFO
+                            # ******
+                            # use the optimizer specified by the schedule.
+                            # if it is different than the current one, init the new optimizer.
+                            if optimParams['name'] != schedule['optim'][sIdx]: 
+                                print("CHanging optim from {} to {}". format(optimParams['name'], schedule['optim'][sIdx]))
+                                optimParams['name'] = schedule['optim'][sIdx]
+                                # NOTE: This is to ensure no momentum is used for the time smoothed tests, untill the parameter are also given by
+                                # the  schedule.
+                                optimParams['params']['momnt']= [0.5] if (optimParams['name'] =='SGD' and sIdx == 0 
+                                                                          and momnt[m] != 0) else [0]
+                                optim = init_optim(model.parameters(), optimParams)
+                            # ---|
+                            # Training stoppage scheme to feed into the trainer function.
+                            adaptStopSel = True if schedule['trainStop'][sIdx] == 'adaptive' else False
+                        
+                            # --------------------------------------------------------------------
+
                             # Form model label string for save purposes
-                            modelTrainInfo = '-'.join((trainerLabel,str(alpha[a]),str(window[wi])))
+                            modelTrainInfo = '-'.join((schedule['optim'][1],optimUpdateLabel,str(alpha[a]),str(window[wi])))
                             schemeSpecific = ''
                             if trainingScheme['update'] == 'Benchmark':
                                 schemeSpecific = '-'.join(('Trained-on', str(len(trainLoaders)), 'Tasks'))
-                            modelTrainInfo = '-'.join((modelTrainInfo, schemeSpecific, 'preTrain-on',str(preTrainNum),preTrainType))
+                            modelTrainInfo = '-'.join((modelTrainInfo, schemeSpecific,'preTrain-on',str(preTrainNum)
+                                                       ,preTrainType,'with',schedule['optim'][0]))
                             # ---|
 
-                            # Invoke training an Evaluation
+                            # Invoke training and Evaluation
+                            args[0] = schedule['epchScheme'][sIdx]  # This holds the max epochs to train for the train function. TODO: turn
+                                                                    # iti inti discionary
                             model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = False, 
-                                        modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme,
-                                        adaptDurationTrain = True)
-                            trainDurInfo = '-'.join(('-trainedFor',str(epochs),'epchs'))
+                                        modelLabel = modelTrainInfo, shuffleTrainLoaders = False, saveRootFolder =scheme,
+                                        adaptDurationTrain = adaptStopSel)
+                            trainDurInfo = '-'.join(('-trainedFor',str(args[0]),'epchs')) # form a train dur string, for logging
                             model.save(titleExt = trainDurInfo)
                             # ---|
 
                             # Predictions 
+                            # The scheduled predicitons might be on a lot of datasets. The results will be logged
+                            # in the same file, one line after another.
                             for i, loader in enumerate(schedule['predOn'][sIdx]):
-                                print(schedule['predLabels'][sIdx])
-                                args[2] = '-'.join((modelTrainInfo,trainDurInfo, 'tasks-for',str(epochs),'epochs-pred-on',
-                                                    schedule['predLabels'][sIdx][0]))
+                                print(schedule['predLabels'][i])
+                                args[2] = '-'.join(('-pred-on', schedule['predLabels'][sIdx][0]))
                                 print(args[2])
-                                model.predict(args, device, loader,modelLabel= modelTrainInfo+trainDurInfo, lossFunction = loss, tarFolder =
-                                              'Predictions/'+ modelTrainInfo, saveRootFolder = scheme)
+                                model.predict(args, device, loader,modelLabel= modelTrainInfo+trainDurInfo, lossFunction = loss,  
+                                              tarFolder ='Predictions/'+ modelTrainInfo, saveRootFolder = scheme, saveResults = 
+                                              False)
                             # ---|
 
                             # Report saving and printouts go here
@@ -437,8 +491,10 @@ def main():
                             evalPlotLabels.append(args[2])
                             # Benchmark case needs to be retrained from scratch every time.
                             if trainingScheme['update'] == 'Benchmark':
+                                tempHistory = model.predHistory
                                 model = modelsList[idx].create_copy(device)
                                 optim = init_optim(model.parameters(), optimParams)
+                                model.predHistory = tempHistory
                         idx += 1
     # ---|
     if plotResults:

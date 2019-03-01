@@ -169,6 +169,7 @@ class TSSGD(Optimizer):
                     d_p.add_(weight_decay, p.data)
                 if momentum != 0:
                     param_state = self.state[p]
+                    print("MOMENTUM NOT ZERO!!!!")
                     if 'momentum_buffer' not in param_state:
                         buf = param_state['momentum_buffer'] = torch.zeros_like(p.data)
                         buf.mul_(momentum).add_(d_p)
@@ -213,14 +214,14 @@ class TSSGD(Optimizer):
                          # when the loop variable i is greater than idx, say 36, it actually means that its the very last
                          # element that should be kept in memory (exactly w) and should be weighted with the most decayed lr
                         if 'A-TSSGD' in self.name:
-                            factor2 = lrFactor(t) * group['lr'] * 1/(w-1)
+                            factor2 = lrFactor(t) * group['lr'] * 1/ storedElems
                         elif "ED-TSSGD" in self.name:
                             if i != self.entryIdx:
                                 if i <= self.entryIdx:
                                     lrDcIdx = self.entryIdx -i
                                 elif i > self.entryIdx:
                                     lrDcIdx = w - (i - self.entryIdx)
-                                factor2 = self.learnDecay[lrDcIdx]* lrFactor(t) * group['lr'] * 1/(w-1)
+                                factor2 = self.learnDecay[lrDcIdx]* lrFactor(t) * group['lr'] * 1/ storedElems
                             else:
                                 factor2 = 0
                         if "DW" in self.name:

@@ -63,7 +63,7 @@ class GefPower(Dataset):
         self.minPower = 48.4
         self.trainMode = trainMode
         self.rawDataFolder = csvPath if csvPath is not None else defaultRawFolder
-        self.baseDate= datetime(2005, 1, 1, 1, 00) # labelled data start date
+        self.baseDate= getTaskBaseDate(task) # each task has a start date in the file
         self.reshaped = 0
         self.toShape = toShape
         self.reshapedBaseFolder = join(dir_path,"../../Applications", self.descr, "ShapedData")
@@ -196,7 +196,7 @@ class GefPower(Dataset):
         to1Hot = np.zeros((self.data_len, 7))
         for i, w in enumerate(weekday):
             to1Hot[i, w] = 1
-
+        print(to1Hot)
         # -----------------------------------------------------------------------------------
         # Start the Architecture Reshape -specifc code.
         # Remember that class names follow CapWords naming convention. Acronyms should be all
@@ -208,12 +208,12 @@ class GefPower(Dataset):
         # Re establish min and max if dataset brings new values.
         tmpMax = loads.max()
         tmpMin = loads.min()
-        selfemaxMower = self.maxPower if tmpMax < self.maxPower else tmpMax
-        self.minPower = self.minPower if tmpMin < self.maxPower else tmpMin
+        self.maxPower = self.maxPower if tmpMax < self.maxPower else tmpMax
+        self.minPower = self.minPower if tmpMin > self.minPower else tmpMin
         tmpMax = temperatures.max()
         tmpMin =temperatures.min()
         self.max = self.max if tmpMax < self.max else tmpMax
-        self.min = self.min if tmpMin < self.min else tmpMin
+        self.min = self.min if tmpMin > self.min else tmpMin
 
         if architecture == "ANNGreek":
 
@@ -498,18 +498,31 @@ def comp_benchmark_loss_manual(t,f, gT,gF):
     loss, l = lossFuntion.forward(data, gTruth)
     print(loss.item())
     return loss 
+def getTaskBaseDate(task='Task 1'):
+
+    idx = int(task.split()[1]) -1
+    print(idx)
+    # format is year, month, day,hour
+    dates = [datetime(2005, 1, 1, 1, 00) ,datetime(2010, 10, 1, 1, 00) ,datetime(2010, 11, 1, 1, 00),datetime(2010, 12, 1, 1, 00),
+             datetime(2011, 1, 1, 1, 00),datetime(2011, 2, 1, 1, 00),datetime(2011, 3, 1, 1, 00),datetime(2011, 4, 1, 1, 00),
+             datetime(2011, 5, 1, 1, 00),datetime(2011, 6, 1, 1, 00),datetime(2011, 7, 1, 1, 00),datetime(2011, 8, 1, 1, 00),
+             datetime(2011, 9, 1, 1, 00),datetime(2011, 10, 1, 1, 00),datetime(2011, 11, 1, 1, 00)]
+    
+    retDate = dates[idx]
+    return retDate
 #-----------------------------------------------------------------------------------------------------------------------
 #  main function definition. Used to debug.
 #-----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
 
     # print(" GEF Power Dataset as Main ")
-    myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
-                         dataRange=[76733,83389])
+    # myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
+                         # dataRange=[76733,83389])
 
-    # myDataset2 = GefPower(task = "Task 2", transform = "normalize",
-                         # dataRange= [0.8,0])
-    print(myDataset)
+    for i in range(1,16):
+        myDataset2 = GefPower(toShape = 'ANNGreek',task = "Task " +str(i), transform = "normalize",
+                         dataRange= [0,0])
+    print(myDataset2)
     # print(myDataset)
     # myDataset.get_data_descr()
     # print(myDataset.__getitem__(1))
