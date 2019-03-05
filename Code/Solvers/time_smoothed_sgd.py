@@ -156,7 +156,7 @@ class TSSGD(Optimizer):
         if storedElems > w:
             self.history = self.history[1:]
             storedElems = w
-        print("Stored elems: " + str(storedElems))
+        # print("Stored elems: " + str(storedElems))
         # print(self.entryIdx)
         for group in self.param_groups:
             weight_decay = group['weight_decay']
@@ -222,6 +222,7 @@ class TSSGD(Optimizer):
                         grad_sum.add(factor2, self.history[i][paramIdx])
                 # add the grad sum to the original parameters.
                 p.data.add_(-grad_sum)
+                # increase the index to update the next set of params.
                 paramIdx += 1
 
         return loss 

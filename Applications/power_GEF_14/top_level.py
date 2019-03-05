@@ -123,7 +123,7 @@ def load_data(preTrainYears, dataPath = None, batchSize = 1000,tasks = 'All', lo
 def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSize = 1000, val_percent = 0.2, startFrom=0,
          optimParams = dict(name="SGD", params=dict(lr=0.1,momnt=0.5,wDecay=0.9,w=1,a=0.5, lrScheme = 'constant')), 
          trainingScheme = dict(preTrainOn = ['5 Years'] , update ='Benchmark', loadFromEnd= False, lrScheme = 'constant', 
-                               trainStopage= 'fixed', preTrainOptim = ['SGD'], updateOptim = ['SGD'], epochScheme = [25,25])):
+                               trainStopage= 'fixed', optimScheme= ['SGD', 'SGD'], epochScheme = [25,25])):
     ''' Description: This function handles the model creation with the chosen parameters and
                      the data loading with chosen batch size and train/test split.  
 
@@ -212,11 +212,12 @@ def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSi
     # The trainset start from Task 1, Task 1 + val, Task 1 + val + Task 2...
     # The test set Val + Task loaders, Taskloaders, TaskLoaders[2:end] ...
     # The predSet has to be a list of lists. It can have just one list.
-    preTrainOptim = trainingScheme['preTrainOptim']
-    updateOptim = trainingScheme['updateOptim']
+    preTrainOptim = trainingScheme['optimScheme'][0]
+    updateOptim = trainingScheme['optimScheme'][1] 
     schedule['optim'].append(preTrainOptim)
     schedule['epchScheme'].append(trainingScheme['epochScheme'][0])
     schedule['trainStop'].append(trainingScheme['trainStopage'][0])
+
     if trainingScheme['update'] == 'Benchmark':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -236,9 +237,36 @@ def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSi
             schedule['testLabels'].append(['Task ' + str(filesNum[i+1])])
             schedule['predOn'].append([taskLoaders[0][i+1]])
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
-            schedule['optim'].append(preTrainOptim)
+            schedule['optim'].append(updateOptim)
             schedule['epchScheme'].append(trainingScheme['epochScheme'][1])
             schedule['trainStop'].append(trainingScheme['trainStopage'][1])
+    if trainingScheme['update'] == 'Benchmark2':
+        schedule['trainOn'].append([trainLoader])
+        schedule['testOn'].append([valLoader])
+        schedule['labels'].append(['Task 1'])
+        schedule['predOn'].append([taskLoaders[0][0]])
+        schedule['predLabels'].append(['Pred on Task ' + str(filesNum[0])])
+        schedule['testLabels'].append(['Task ' + str(filesNum[0])])
+        for i, t in enumerate(filesNum[0:-1]):
+            print(i, t)
+            if i ==0:
+                prevTrain = [taskLoaders[0][0]]
+                prevLabels  = ['Task 2']
+            else:
+                prevTrain = schedule['trainOn'][i].copy()
+                prevLabels  = schedule['labels'][i].copy()
+                prevTrain.append(taskLoaders[0][i])
+                prevLabels.append('Task '+str(i+2))
+            schedule['trainOn'].append(prevTrain)
+            schedule['testOn'].append([taskLoaders[1][i]])
+            schedule['labels'].append(prevLabels)
+            schedule['testLabels'].append(['Task ' + str(filesNum[i+1])])
+            schedule['predOn'].append([taskLoaders[0][i+1]])
+            schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i+1])])
+            schedule['optim'].append(updateOptim)
+            schedule['epchScheme'].append(trainingScheme['epochScheme'][1])
+            schedule['trainStop'].append(trainingScheme['trainStopage'][1])
+
     elif trainingScheme['update'] == 'Online':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -257,6 +285,7 @@ def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSi
             schedule['optim'].append(updateOptim)
             schedule['epchScheme'].append(trainingScheme['epochScheme'][1])
             schedule['trainStop'].append(trainingScheme['trainStopage'][1])
+
     elif trainingScheme['update'] == 'ParamEvaluation':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -264,6 +293,7 @@ def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSi
         schedule['labels'].append(['-'.join(('param-eval-trainedOn',trainOrder, str(preTrainYears)))])
         schedule['testLabels'].append(['EvalSet ' + str(5-preTrainYears)])
         schedule['predOn'].append([])
+
     elif trainingScheme['update'] == 'Offline':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -273,9 +303,12 @@ def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSi
         # Only one pred task. just provide a results for each one of the tasks.
         schedule['predOn'].append(taskLoaders[0])
         schedule['optim'].append(preTrainOptim)
+        schedule['epchScheme'].append(trainingScheme['epochScheme'][0])
+        schedule['trainStop'].append(trainingScheme['trainStopage'][0])
         for i, t in enumerate(filesNum):
             print(i, t)
             schedule['predLabels'].append(['Pred on Task ' + str(filesNum[i])])
+
     elif trainingScheme['update'] == 'Default':
         schedule['trainOn'].append([trainLoader])
         schedule['testOn'].append([valLoader])
@@ -288,7 +321,8 @@ def init(model = None, tasks = "All", quantiles = [0.9], device = "cpu", batchSi
             labels.append(['Pred on Task ' + str(filesNum[i])])
         schedule['predLabels'].append(labels)
     # print(trainingScheme['epochScheme'])
-    # print(schedule)
+    print(schedule)
+    # print(schedule['trainOn'])
     # print(schedule['testOn'])
     # print(schedule['testLabels'])
     # print(schedule['predOn'])
@@ -321,11 +355,15 @@ def main():
     # lines
     #****************************************************************************
     # Variable Definitions
-    preTrainEpochs = 50         # must be at least 2 for plot with labellines to work
-    updateEpochs = 30
+    # Training parameters
+    preTrainEpochs = 50                 # must be at least 2 for plot with labellines to work
+    updateEpochs = 40
+    trainStopage = ['fixed', 'adaptive'] # Stopagge cheme for 0: preTrain, 1: update. Options: adaptive, fixed
+    adpWindow = 20                       # window size for adaptive stoppage algorithm.
+    # Data loading and handling parameters
     batchSize = 1000
-    val_percent = 0.2             # percentage of each available set to use as validation.
-    startFrom = 0.0
+    val_percent = 0.20              # percentage of each available set to use as validation.
+    startFrom = 0.0                 # percentage of data from start,of each task, to ignore
     # Select Architecture here
     arch = "ANNGreek"
     # ---|
@@ -333,37 +371,36 @@ def main():
     # Loss Function Declaration and parameter definitions go here.
     quantiles = [0.01*i for i in range(1,100)]
     # quantiles = [0.1,0.5,0.7, 0.9]
-    loss = utils.QuantileLoss(quantiles)
-    # loss = nn.MSELoss()
+    loss = utils.QuantileLoss(quantiles) # Loss Function to use. Optins: nn.MSELoss(), utils.QuantileLoss(Quantiles)
     # ---|
 
     # Optimizer Declaration and parameter definitions go here.
-    gamma = [0.9] # learning rate
+    gamma = [0.3, 0.5,0.7,0.9] # learning rate
     momnt = [0.5]#, 0.5] # momentum
     wDecay= [0.01]       # weight decay (l2 normalization)   
-    window= [1]          # window size for time smoothed variants
+    window= [30]          # window size for time smoothed variants
     # alpha = [0,0.1,0.3,0.5,0.7,0.9]
     alpha = [1]
-    preTrainOptimName = "SGD"    # SGD,(DW)-A-TSSGD, (DW-)ED-TSSGD
-    updateOptimName =  'SGD' # only affects the online case
-    lrScheme = ['constant']
-    trainStopage = ['fixed', 'adaptive'] # Stopagge cheme for 0: preTrain, 1: update. Options: adaptive, fixed
-    totalModels = len(gamma) * len(momnt) * len(wDecay) * len(window) * len(alpha)
+    optimScheme = ['SGD', 'SGD'] # preTrain opti, updateOptim. Update optim only pertains to Online case.
+                                     # Options: SGD, ED-TSSGD, A-TSSGD
+    lrScheme = ['constant']          # learning rate options. Adapt learning rate. Optins: fixed, adaptive.
+    
+    totalModels = len(gamma) * len(momnt) * len(wDecay) * len(window) * len(alpha) # used to count how many models are needed.
     # ---|
 
     # Task loading and online learning params go here.
     tasks = 'All' # Use this to load all Tasks 
     #                    0               1              2          3          4
     availSchemes = ['Benchmark', 'ParamEvaluation', 'Default', 'Offline', 'Online']
-    scheme = availSchemes[0] # Benchmark, ParamEvaluation
-    epochScheme = [preTrainEpochs, updateEpochs]
+    scheme = availSchemes[3] # Benchmark, ParamEvaluation
+    epochScheme = [preTrainEpochs, updateEpochs] # Max epochs for preTrain and update phases.
     # Do this to see if withholding data will affect the accuracy from the onlinecase.
     if scheme == 'Online':
         startFrom =0.5
     # set has 5.75 years. Update: monthly, weekly. Load from end tells loader to load data from the
     # last years to the first.
     trainingScheme= dict(preTrainOn = ["4 Years"], update = scheme, loadFromEnd = True, lrScheme = lrScheme, trainStopage =
-                         trainStopage, preTrainOptim = preTrainOptimName, updateOptim = updateOptimName, epochScheme = epochScheme)   
+                         trainStopage, optimScheme = optimScheme, epochScheme = epochScheme)   
                                                                          # benchmark
     # tasks = [2, 4, 6, 8] # Use this to provide a list of the required subset!
     # ---|
@@ -386,19 +423,15 @@ def main():
     # The tasks argument controls which Task folders are going to be loaded for use. Give a list
     # containing the numbers for the task you want i.e [2, 4,5,6,7,12]. If you with to load all
     # Simple set tasks  "All", which is also the default value.
-    optimParams = dict(name = preTrainOptimName, params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window, a = alpha, lrScheme = lrScheme))
+    optimParams = dict(name = optimScheme[0], params = dict(lr=gamma, momnt = momnt, wDecay=wDecay, w = window, a = alpha, lrScheme = lrScheme))
     dataLoadArgs  = dict(model = arch, tasks = tasks, optimParams = optimParams, quantiles =quantiles, device = device, 
                          trainingScheme = trainingScheme , batchSize = batchSize, val_percent= val_percent, startFrom=startFrom)
-    
-    
-    # remember that range(a,b) is actually [a,b) in python.
-    # predLabels = ['Task '+ str(i) for i in range(2, 16)] if tasks == "All" else ['Task '+ str(i) for i in tasks]
 
     # Add extra label for Time-smoothed SGD trainer
     optimUpdateLabel = '-'.join((lrScheme[0]+'LR' , trainStopage[0],trainStopage[1], 'stop'))
     # Get the pretrain specifics
     preTrainNum = int(trainingScheme['preTrainOn'][0][0])
-    preTrainType = trainingScheme['preTrainOn'][0][2:]
+    preTrainType = trainingScheme['preTrainOn'][0][2:] #get if number is years, months etc.
     # Get the models, optimizer, train, evaluation and test (Task) data loader objects here.
     # Models are initilized with the same weights. The number of models returned is
     # a function of the combinization of optimizer parameters lr*moment*weight decay.
@@ -427,7 +460,7 @@ def main():
                         print("\nModel: {}@ {}. Lr: {} | Mom: {} | wDec: {}\n".format(idx,hex(id(model)), gamma[l], momnt[m],
                                                                               wDecay[wD]))
                         # Instantiate solver according to input params
-                        optimParams = dict(name = preTrainOptimName, params = dict(lr=[gamma[l]], momnt = [momnt[m]],
+                        optimParams = dict(name = optimScheme[0], params = dict(lr=[gamma[l]], momnt = [momnt[m]],
                                       wDecay=[wDecay[wD]], w =[window[wi]], a=[alpha[a]], lrScheme=lrScheme))
                         optim = init_optim(model.parameters(), optimParams)
                         # Train according to schedules here. trainloaders and tests can be lists of dataloaders.
@@ -453,20 +486,22 @@ def main():
                             # --------------------------------------------------------------------
 
                             # Form model label string for save purposes
-                            modelTrainInfo = '-'.join((schedule['optim'][1],optimUpdateLabel,str(alpha[a]),str(window[wi])))
+                            s = trainingScheme['update']
+                            modelTrainInfo = '-'.join((s, schedule['optim'][1],optimUpdateLabel,str(alpha[a]),str(window[wi])))
+                            modelTrainInfo = '-'.join((modelTrainInfo, 'valPercent', str(val_percent)))
                             schemeSpecific = ''
-                            if trainingScheme['update'] == 'Benchmark':
-                                schemeSpecific = '-'.join(('Trained-on', str(len(trainLoaders)), 'Tasks'))
+                            # if trainingScheme['update'] == 'Benchmark':
+                                # schemeSpecific = '-'.join(('Trained-on', str(len(trainLoaders)), 'Tasks'))
                             modelTrainInfo = '-'.join((modelTrainInfo, schemeSpecific,'preTrain-on',str(preTrainNum)
                                                        ,preTrainType,'with',schedule['optim'][0]))
                             # ---|
 
                             # Invoke training and Evaluation
-                            args[0] = schedule['epchScheme'][sIdx]  # This holds the max epochs to train for the train function. TODO: turn
-                                                                    # iti inti discionary
+                            args[0] = schedule['epchScheme'][sIdx]  # This holds the max epochs to train for the train function. 
+                                                                    # TODO: turn  it  into a discionary
                             model.train(args,device, trainLoaders, tests, optim, loss, saveHistory = True, savePlot = False, 
-                                        modelLabel = modelTrainInfo, shuffleTrainLoaders = False, saveRootFolder =scheme,
-                                        adaptDurationTrain = adaptStopSel)
+                                        modelLabel = modelTrainInfo, shuffleTrainLoaders = True, saveRootFolder =scheme,
+                                        adaptDurationTrain = adaptStopSel, w= adpWindow)
                             trainDurInfo = '-'.join(('-trainedFor',str(args[0]),'epchs')) # form a train dur string, for logging
                             model.save(titleExt = trainDurInfo)
                             # ---|
@@ -490,13 +525,15 @@ def main():
                             args[2] = 'Train up to ' + testLabels[-1]  
                             evalPlotLabels.append(args[2])
                             # Benchmark case needs to be retrained from scratch every time.
-                            if trainingScheme['update'] == 'Benchmark':
+                            if 'Benchmark' in trainingScheme['update'] :
                                 tempHistory = model.predHistory
                                 model = modelsList[idx].create_copy(device)
                                 optim = init_optim(model.parameters(), optimParams)
                                 model.predHistory = tempHistory
                         idx += 1
     # ---|
+    # sometimes the plot function does not run, it needs an extra run. It is better to run it independantly
+    # That is why the plotResults = 0 by default.
     if plotResults:
         modelLabel = scheme    # Plot total evaluation plot
         # This should become a function

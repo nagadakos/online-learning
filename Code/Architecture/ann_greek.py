@@ -156,7 +156,7 @@ class ANNGreek(nn.Module):
 
     def train(self, args, device, trainLoader, testLoader, optim, lossFunction =
               nn.MSELoss(),saveHistory = False, savePlot = False, modelLabel ='', saveRootFolder='',
-             shuffleTrainLoaders = False, adaptDurationTrain = False, epsilon = 0.1):
+             shuffleTrainLoaders = False, adaptDurationTrain = False,w=10, epsilon = 0.03):
 
         epochs = args[0]
         # Create deep copies of the arguments, might be required to the change. 
@@ -165,6 +165,7 @@ class ANNGreek(nn.Module):
         testerArgs[1] *= 4 
         l_t = 0
         l_t_1 = 0
+
         # Make sure given train loader is a list
         if not isinstance(trainLoader, list):
             trainLoader = [trainLoader]
@@ -182,7 +183,7 @@ class ANNGreek(nn.Module):
             # If adaptive duration for training is enabled, then break training process if progress
             # in loss is less than epsilon. Should be expanded in average over past few epochs.
             if adaptDurationTrain == True:
-                if trainer.dynamic_conv_check(self.history, args=dict(window= 10, percent_change=0.03, counter =e)):
+                if trainer.dynamic_conv_check(self.history, args=dict(window= w, percent_change=epsilon, counter =e)):
                     break
                 else:
                     print("CONTINUE")

@@ -212,8 +212,8 @@ def main():
     # title = 'ANNGREEK Update Scheme Evaluation Plots'
     # filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/Experiment-02-10-2019-A-1-year/Prettyfied/Selective tests/DW-Cases"
     # experimentFolder = 'Experiment-02-10-2019-A-1-year'
-    experimentFolder = 'Experiment-02-19-2019'
-    targetExperiment = '/Benchmark-Comparison'
+    experimentFolder = 'Experiment-02-26-2019'
+    targetExperiment = '/Online-vs-Offline'
     filePath = "../../Applications/power_GEF_14/Logs/ANNGreek/Online/"+experimentFolder+ targetExperiment
 
     f = get_files_from_path(filePath, "*.txt")
@@ -230,9 +230,13 @@ def main():
     print(len(files), len(labels))
         
     # NOTE: Change this number to match the training epochs
-    xAxisNumbers = np.arange(1, 15)
+    xAxisNumbers = np.arange(2, 16)
     plot_regressor(filesPath = files, title=title, xAxisNumbers = xAxisNumbers, labels = labels, plot = 'Test', mode = 'Prediction History' )
-    plt.savefig("../../Applications/power_GEF_14/Plots/"+experimentFolder+'/'+figType+str(randint(0,150)) + ".png")
+    saveFile = "../../Applications/power_GEF_14/Plots/"+experimentFolder
+    if not os.path.exists(saveFile):
+            os.makedirs(saveFile)
+    saveFile += '/'+figType+str(randint(0,150)) + ".png"
+    plt.savefig(saveFile)
     plt.close()
 
   

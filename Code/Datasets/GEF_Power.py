@@ -177,7 +177,7 @@ class GefPower(Dataset):
     #------------------------------------------------------------------------------------------
     # Start of shape data 
 
-    def shape_data_function(self, architecture, savePath, baseIdx = 0):
+    def shape_data_function(self, architecture, savePath, baseDate = 0, dataLen = 0):
         ''' Description: This function reshapes the read file to the required
                          input of the given architecture. If the architecture is
                          not implemented, a printout will be dmake and the dataset
@@ -187,7 +187,11 @@ class GefPower(Dataset):
             Returns:    In place.
         '''
         # trend = np.fromfunction(map(lambda x: x*1, range(self.data_len)), dtype = int)
-        trend = np.arange(baseIdx, self.data_len, dtype=np.intc)
+        # trend = np.arange(baseIdx, self.data_len, dtype=np.intc)
+        curDate = getTaskBaseDate()
+        base =  (baseDate- curDate).days * 24           # reustl in in days.. * 24 = hours
+        trend = np.arange(base, base+self.data_len, dtype=np.intc)
+        print(trend)
         date  = list(map(lambda x: self.baseDate + timedelta(hours=np.asscalar(x)), trend))
         weekday = list(map(lambda x: x.weekday(), date))
         month = list(map(lambda x: x.month, date))
@@ -323,9 +327,10 @@ class GefPower(Dataset):
     # ---------------------------------------------------------------------------------
 
     def create_shaped_data(self, contents):
-        baseIdx = 0
+
         for folder, files in contents.items():
             offset = self.offset if folder == "Task 1" else 0
+            print(files)
             if self.toShape is not None:
                 # Form required file
                 fileExt = ".csv"
@@ -350,8 +355,8 @@ class GefPower(Dataset):
                    self.data     = pd.read_csv(fileToRead, skiprows = offset)
                    self.labels   = np.asarray(self.data.iloc[:, 2]) # third column has the load values
                    self.data_len = len(self.data.index)
-                   self.shape_data_function(self.toShape, reshapedPath, baseIdx = baseIdx)
-                   baseIdx      += len(self.data.index)
+                   baseDate       = getTaskBaseDate(folder)
+                   self.shape_data_function(self.toShape, reshapedPath, baseDate = baseDate)
 
         # print(relativePathBody)
     # End of create shaped data
@@ -503,7 +508,7 @@ def getTaskBaseDate(task='Task 1'):
     idx = int(task.split()[1]) -1
     print(idx)
     # format is year, month, day,hour
-    dates = [datetime(2005, 1, 1, 1, 00) ,datetime(2010, 10, 1, 1, 00) ,datetime(2010, 11, 1, 1, 00),datetime(2010, 12, 1, 1, 00),
+    dates = [datetime(2005, 1, 1, 1, 00) ,datetime(2010, 10, 1, 1, 1) ,datetime(2010, 11, 1, 1, 00),datetime(2010, 12, 1, 1, 00),
              datetime(2011, 1, 1, 1, 00),datetime(2011, 2, 1, 1, 00),datetime(2011, 3, 1, 1, 00),datetime(2011, 4, 1, 1, 00),
              datetime(2011, 5, 1, 1, 00),datetime(2011, 6, 1, 1, 00),datetime(2011, 7, 1, 1, 00),datetime(2011, 8, 1, 1, 00),
              datetime(2011, 9, 1, 1, 00),datetime(2011, 10, 1, 1, 00),datetime(2011, 11, 1, 1, 00)]
@@ -519,8 +524,10 @@ if __name__ == "__main__":
     # myDataset = GefPower( toShape = "ANNGreek", transform = "normalize",
                          # dataRange=[76733,83389])
 
-    for i in range(1,16):
-        myDataset2 = GefPower(toShape = 'ANNGreek',task = "Task " +str(i), transform = "normalize",
+    # for i in range(1,16):
+        # myDataset2 = GefPower(toShape = 'ANNGreek',task = "Task " +str(i), transform = "normalize",
+                         # dataRange= [0,0])
+    myDataset2 = GefPower(toShape = 'ANNGreek',task = "Task 2" , transform = "normalize",
                          dataRange= [0,0])
     print(myDataset2)
     # print(myDataset)
